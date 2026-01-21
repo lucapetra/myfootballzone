@@ -1,0 +1,381 @@
+import EditProfileModal from '@/components/EditProfileModal';
+import { useTheme } from '@/context/ThemeContext';
+import { supabase } from '@/lib/supabase';
+import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Color Palette (kept as is)
+const Colors = {
+    light: {
+        background: '#f8faf9',
+        safeArea: 'rgba(248, 250, 249, 0.8)',
+        card: '#FFFFFF',
+        text: '#0f172a',
+        textSecondary: '#64748b',
+        primary: '#1E6B3E',
+        iconHeader: '#1e293b',
+        border: '#f1f5f9',
+        dot: '#94a3b8',
+        iconContainer: '#1E6B3E',
+        modalOverlay: 'rgba(0,0,0,0.5)'
+    },
+    dark: {
+        background: '#020403',
+        safeArea: 'rgba(2, 4, 3, 0.8)',
+        card: '#121212',
+        text: '#F8faf9',
+        textSecondary: '#94a3b8',
+        primary: '#4ADE80',
+        iconHeader: '#F8faf9',
+        border: '#333333',
+        dot: '#64748b',
+        iconContainer: '#2D6A4F',
+        modalOverlay: 'rgba(0,0,0,0.8)'
+    }
+};
+
+export default function ProfileScreen() {
+    const router = useRouter();
+    const { activeTheme } = useTheme();
+    const theme = Colors[activeTheme];
+
+    const [profile, setProfile] = useState<any>(null);
+    const [userEmail, setUserEmail] = useState<string>('');
+    const [loading, setLoading] = useState(true);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            setUserEmail(user.email || '');
+
+            let { data, error } = await supabase
+                .from('people')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (!data) {
+                const { data: mockData } = await supabase.from('people').select('*').limit(1).single();
+                data = mockData;
+            }
+
+            if (data) setProfile(data);
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateProfile = async (updates: { firstName: string; lastName: string; phone: string; roleSpecific: string; preferredFoot: string }) => {
+        if (!profile) return;
+
+        try {
+            const { error } = await supabase
+                .from('people')
+                .update({
+                    first_name: updates.firstName,
+                    last_name: updates.lastName,
+                    phone: updates.phone,
+                    role_specific: updates.roleSpecific,
+                    preferred_foot: updates.preferredFoot
+                })
+                .eq('figc_id', profile.figc_id);
+
+            if (error) throw error;
+
+            setProfile({
+                ...profile,
+                first_name: updates.firstName,
+                last_name: updates.lastName,
+                phone: updates.phone,
+                role_specific: updates.roleSpecific,
+                preferred_foot: updates.preferredFoot
+            });
+            Alert.alert("Successo", "Profilo aggiornato con successo.");
+        } catch (error) {
+            Alert.alert("Errore", "Impossibile aggiornare il profilo.");
+            console.error(error);
+        }
+    };
+
+    const pickImage = async () => {
+        Alert.alert(
+            "Modifica Foto Profilo",
+            "Scegli un'opzione",
+            [
+                { text: "Annulla", style: "cancel" },
+                {
+                    text: "Galleria",
+                    onPress: async () => {
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.5,
+                        });
+
+                        if (!result.canceled) {
+                            uploadAvatar(result.assets[0].uri);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const uploadAvatar = async (uri: string) => {
+        try {
+            setUploading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            const arrayBuffer = await new Response(blob).arrayBuffer();
+
+            const fileExt = uri.split('.').pop();
+            const fileName = `${profile?.figc_id || Date.now()}_${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError, data } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, arrayBuffer, {
+                    contentType: blob.type,
+                    upsert: true
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+            if (profile) {
+                await supabase
+                    .from('people')
+                    .update({ photo_url: publicUrl })
+                    .eq('figc_id', profile.figc_id);
+
+                setProfile({ ...profile, photo_url: publicUrl });
+            }
+
+        } catch (error) {
+            Alert.alert("Errore", "Caricamento immagine fallito.");
+            console.error(error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleLogout = () => {
+        Alert.alert("Logout", "Sei sicuro di voler uscire?", [
+            { text: "Annulla", style: "cancel" },
+            {
+                text: "Esci",
+                style: "destructive",
+                onPress: async () => {
+                    setIsLoggingOut(true);
+                    await supabase.auth.signOut();
+                }
+            }
+        ]);
+    };
+
+    const renderInfoRow = (icon: keyof typeof MaterialIcons.glyphMap, label: string, value: string) => (
+        <View style={styles.infoRow}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.iconContainer, shadowColor: theme.primary }]}>
+                <MaterialIcons name={icon} size={22} color="#FFF" />
+            </View>
+            <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>{label}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{value || '-'}</Text>
+            </View>
+        </View>
+    );
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+        );
+    }
+
+    return (
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.safeArea }]}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>Profilo</Text>
+                    <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/settings')}>
+                        <MaterialIcons name="settings" size={24} color={theme.iconHeader} />
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {/* Avatar Section */}
+                    <View style={styles.profileHeader}>
+                        <View style={styles.avatarWrapper}>
+                            <TouchableOpacity onPress={pickImage} disabled={uploading}>
+                                <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
+                                    {profile?.photo_url ? (
+                                        <Image
+                                            source={{ uri: profile.photo_url }}
+                                            style={styles.avatar}
+                                        />
+                                    ) : (
+                                        <View style={[styles.avatar, { backgroundColor: theme.border, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <MaterialIcons name="person" size={64} color={theme.textSecondary} />
+                                        </View>
+                                    )}
+                                    {uploading && (
+                                        <View style={styles.loadingOverlay}>
+                                            <ActivityIndicator color="#FFF" />
+                                        </View>
+                                    )}
+
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.profileInfo}>
+                            <Text style={[styles.profileName, { color: theme.text }]}>
+                                {profile ? `${profile.first_name} ${profile.last_name}` : 'Utente'}
+                            </Text>
+
+                            <View style={styles.roleRow}>
+                                <Text style={[styles.roleText, { color: theme.primary }]}>
+                                    {profile?.role_primary || 'GIOCATORE'}
+                                </Text>
+                                <Text style={[styles.dot, { color: theme.dot }]}>•</Text>
+                                <Text style={[styles.statusText, { color: theme.textSecondary }]}>
+                                    {profile?.role_specific || 'Membro'}
+                                </Text>
+                            </View>
+
+                            <View style={styles.verifiedRow}>
+                                <MaterialIcons name="verified" size={16} color={theme.primary} />
+                                <Text style={[styles.verifiedText, { color: theme.primary }]}>MyFootballZone Verified Player</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Personal Info Card */}
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.cardTitle, { color: theme.primary }]}>INFORMAZIONI PERSONALI</Text>
+                        <View style={styles.infoList}>
+                            {renderInfoRow('call', 'Telefono', profile?.phone || 'Non inserito')}
+                            {renderInfoRow('mail', 'Email', userEmail || 'ID non disp.')}
+                            {renderInfoRow('sports-soccer', 'Piede', profile?.preferred_foot?.toUpperCase() || '-')}
+                        </View>
+                    </View>
+
+                    {/* Actions */}
+                    <View style={styles.actionSection}>
+                        <TouchableOpacity
+                            style={[styles.editButton, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+                            onPress={() => setModalVisible(true)}
+                        >
+                            <MaterialIcons name="edit" size={22} color={activeTheme === 'dark' ? '#000' : '#FFF'} />
+                            <Text style={[styles.editButtonText, { color: activeTheme === 'dark' ? '#000' : '#FFF' }]}>Modifica Profilo</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.logoutButton, isLoggingOut && { opacity: 0.7 }]}
+                            onPress={handleLogout}
+                            disabled={isLoggingOut}
+                        >
+                            {isLoggingOut ? (
+                                <ActivityIndicator size="small" color="#dc2626" />
+                            ) : (
+                                <>
+                                    <MaterialIcons name="logout" size={20} color="#dc2626" />
+                                    <Text style={styles.logoutText}>Logout dall'account</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Spacer for Tab Bar */}
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+            </SafeAreaView>
+
+            {profile && (
+                <EditProfileModal
+                    visible={modalVisible}
+                    onClose={() => setModalVisible(false)}
+                    initialData={{
+                        firstName: profile.first_name,
+                        lastName: profile.last_name,
+                        phone: profile.phone || '',
+                        roleSpecific: profile.role_specific || '',
+                        preferredFoot: profile.preferred_foot || 'dx'
+                    }}
+                    onSave={handleUpdateProfile}
+                    theme={theme}
+                />
+            )}
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1 },
+    safeArea: { flex: 1 },
+
+    // Header
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 12 },
+    headerTitle: { fontSize: 20, fontWeight: '700' },
+    headerButton: { padding: 8, borderRadius: 20 },
+
+    // Scroll Content
+    scrollContent: { paddingHorizontal: 24, paddingBottom: 24 },
+
+    // Profile Header
+    profileHeader: { alignItems: 'center', marginVertical: 24 },
+    avatarWrapper: { marginBottom: 16, position: 'relative' },
+    avatarContainer: { width: 128, height: 128, borderRadius: 64, borderWidth: 4, padding: 4, overflow: 'hidden' },
+    avatar: { width: '100%', height: '100%', borderRadius: 60 },
+    loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', borderRadius: 60 },
+
+    profileInfo: { alignItems: 'center', gap: 6 },
+    profileName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+    roleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    roleText: { fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    dot: { fontSize: 13 },
+    statusText: { fontSize: 14, fontWeight: '500' },
+
+    verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    verifiedText: { fontSize: 12, fontWeight: '600' },
+
+    // Card
+    card: { borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, borderWidth: 1, marginBottom: 32 },
+    cardTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 24 },
+    infoList: { gap: 24 },
+
+    infoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    iconContainer: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+    infoContent: { flex: 1 },
+    infoLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+    infoValue: { fontSize: 16, fontWeight: '700' },
+
+    // Actions
+    actionSection: { gap: 16, marginBottom: 24 },
+    editButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18, borderRadius: 18, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+    editButtonText: { fontSize: 16, fontWeight: '700' },
+
+    logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 12 },
+    logoutText: { color: '#dc2626', fontSize: 15, fontWeight: '700' },
+});

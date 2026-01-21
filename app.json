@@ -4,12 +4,21 @@
     "slug": "MyFootballZone",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "myfootballzone",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "MyFootballZone needs access to your calendar to save match events.",
+        "NSRemindersUsageDescription": "MyFootballZone needs access to your reminders to save match reminders.",
+        "NSCalendarsFullAccessUsageDescription": "MyFootballZone needs access to your calendar to save match events."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +28,18 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "package": "com.anonymous.MyFootballZone"
     },
     "web": {
       "output": "static",
@@ -38,11 +58,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
+      ],
+      "@react-native-google-signin/google-signin"
+    ]
   }
 }
