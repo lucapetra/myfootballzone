@@ -15,8 +15,9 @@ export interface MatchData {
         lat: number;
         lng: number;
     };
-    home_team_logo?: string | null;
-    away_team_logo?: string | null;
+    home_team_logo?: string | null | number;
+    away_team_logo?: string | null | number;
+
 
     weather: {
         temp: string;

@@ -1,5 +1,7 @@
+import { useMockMatch } from '@/context/MockMatchContext';
+import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
-import { fetchNextMatch, uploadTeamLogo, upsertMatch } from '@/services/matchService';
+import { fetchNextMatch, MatchData, uploadTeamLogo, upsertMatch } from '@/services/matchService';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -53,6 +55,8 @@ export default function ManageMatch() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const isEditMode = params.mode === 'edit';
+    const { mockDataEnabled } = useSettings();
+    const { mockMatch, updateMockMatch } = useMockMatch();
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -80,8 +84,8 @@ export default function ManageMatch() {
     ];
 
     // Logos
-    const [homeLogo, setHomeLogo] = useState<string | null>(null);
-    const [awayLogo, setAwayLogo] = useState<string | null>(null);
+    const [homeLogo, setHomeLogo] = useState<string | null | number>(null);
+    const [awayLogo, setAwayLogo] = useState<string | null | number>(null);
 
     useEffect(() => {
         if (isEditMode) {
@@ -92,7 +96,7 @@ export default function ManageMatch() {
     const loadMatchData = async () => {
         try {
             setLoading(true);
-            const data = await fetchNextMatch();
+            const data = mockDataEnabled ? mockMatch : await fetchNextMatch();
             if (data) {
                 setEventType(data.event_type || 'match');
                 // Clear generic "Prima Squadra" names so inputs appear empty (placeholder visible)
@@ -143,6 +147,9 @@ export default function ManageMatch() {
     };
 
     const pickImage = async (isHome: boolean) => {
+        // In mock mode, we might want to allow picking from gallery, but for now we keep it same.
+        // If it's a number (local asset), we can't really replace it with gallery image easily unless we change state type.
+        // We updated state type to allow number.
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
@@ -173,18 +180,53 @@ export default function ManageMatch() {
                 return;
             }
 
+            if (mockDataEnabled) {
+                // Mock Save
+                const newDate = startDateTime;
+                const dayName = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' }).format(newDate).toUpperCase();
+                const timeStr = newDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+                const updatedMock: MatchData = {
+                    event_type: eventType,
+                    home: homeTeam,
+                    away: awayTeam,
+                    date: dayName,
+                    isoDate: newDate.toISOString(),
+                    time: timeStr,
+                    location: {
+                        name: locationText,
+                        address: locationAddress || '',
+                        lat: locationLat || 0,
+                        lng: locationLng || 0
+                    },
+                    home_team_logo: homeLogo,
+                    away_team_logo: awayLogo,
+                    weather: { // Keep existing weather or random
+                        temp: '18°C',
+                        condition: 'Pioggia leggera',
+                        cleats: 'SG',
+                        cleatsDesc: 'Terreno morbido'
+                    },
+                    callups: { confirmed: 14, total: 18 }
+                };
+
+                updateMockMatch(updatedMock);
+                Alert.alert('Successo', 'Evento (Mock) aggiornato!', [
+                    { text: 'OK', onPress: () => router.back() }
+                ]);
+                return;
+            }
+
             setSaving(true);
 
-            // Upload logos if needed (simplified logic: if generic uri, assume local and upload)
-            // Realistically we'd check if it starts with 'file://'
-            let finalHomeLogo = homeLogo;
-            let finalAwayLogo = awayLogo;
+            let finalHomeLogo: string | null = typeof homeLogo === 'string' ? homeLogo : null;
+            let finalAwayLogo: string | null = typeof awayLogo === 'string' ? awayLogo : null;
 
-            if (homeLogo && homeLogo.startsWith('file://') && homeTeam) {
+            if (typeof homeLogo === 'string' && homeLogo.startsWith('file://') && homeTeam) {
                 const uploaded = await uploadTeamLogo(homeLogo, homeTeam);
                 if (uploaded) finalHomeLogo = uploaded;
             }
-            if (awayLogo && awayLogo.startsWith('file://') && awayTeam) {
+            if (typeof awayLogo === 'string' && awayLogo.startsWith('file://') && awayTeam) {
                 const uploaded = await uploadTeamLogo(awayLogo, awayTeam);
                 if (uploaded) finalAwayLogo = uploaded;
             }
@@ -324,7 +366,7 @@ export default function ManageMatch() {
                             <View style={styles.teamInputContainer}>
                                 <TouchableOpacity onPress={() => pickImage(true)} style={styles.logoPlaceholder}>
                                     {homeLogo ? (
-                                        <Image source={{ uri: homeLogo }} style={styles.logoPreview} />
+                                        <Image source={typeof homeLogo === 'string' ? { uri: homeLogo } : homeLogo} style={styles.logoPreview} />
                                     ) : (
                                         <View style={[styles.logoCircle, { borderColor: theme.border }]}>
                                             <Ionicons name="camera" size={20} color={theme.textSecondary} />
@@ -345,7 +387,7 @@ export default function ManageMatch() {
                             <View style={styles.teamInputContainer}>
                                 <TouchableOpacity onPress={() => pickImage(false)} style={styles.logoPlaceholder}>
                                     {awayLogo ? (
-                                        <Image source={{ uri: awayLogo }} style={styles.logoPreview} />
+                                        <Image source={typeof awayLogo === 'string' ? { uri: awayLogo } : awayLogo} style={styles.logoPreview} />
                                     ) : (
                                         <View style={[styles.logoCircle, { borderColor: theme.border }]}>
                                             <Ionicons name="camera" size={20} color={theme.textSecondary} />
@@ -388,6 +430,7 @@ export default function ManageMatch() {
                                 {showDatePicker && (
                                     <DateTimePicker
                                         value={startDateTime}
+                                        minimumDate={new Date()}
                                         mode={datePickerMode}
                                         display="default"
                                         onChange={onAndroidChange}
@@ -401,6 +444,7 @@ export default function ManageMatch() {
                                     <Text style={[styles.label, { color: theme.text }]}>Data</Text>
                                     <DateTimePicker
                                         value={startDateTime}
+                                        minimumDate={new Date()}
                                         mode="date"
                                         display="default"
                                         onChange={onDateChange}

@@ -14,9 +14,15 @@ interface MatchResult {
 interface NextMatchCardProps {
     homeTeam: string;
     awayTeam: string;
-    homeLogo?: string | null;
-    awayLogo?: string | null;
+    homeLogo?: string | null | number;
+    awayLogo?: string | null | number;
     eventType?: 'match' | 'training';
+    timeLeft?: {
+        days: string;
+        hours: string;
+        minutes: string;
+        seconds: string;
+    };
 
     theme: any;
     style?: ViewStyle;
@@ -28,6 +34,7 @@ export default function NextMatchCard({
     homeLogo,
     awayLogo,
     eventType = 'match',
+    timeLeft,
     style
 }: NextMatchCardProps) {
     const isTraining = eventType === 'training';
@@ -56,7 +63,7 @@ export default function NextMatchCard({
                         <View style={styles.teamContainer}>
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
                                 {homeLogo ? (
-                                    <Image source={{ uri: homeLogo }} style={styles.teamLogo} contentFit="contain" />
+                                    <Image source={typeof homeLogo === 'string' ? { uri: homeLogo } : homeLogo} style={styles.teamLogo} contentFit="contain" />
                                 ) : (
                                     <Text style={styles.teamInitial}>{homeTeam.charAt(0)}</Text>
                                 )}
@@ -71,7 +78,7 @@ export default function NextMatchCard({
                         <View style={styles.teamContainer}>
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
                                 {awayLogo ? (
-                                    <Image source={{ uri: awayLogo }} style={styles.teamLogo} contentFit="contain" />
+                                    <Image source={typeof awayLogo === 'string' ? { uri: awayLogo } : awayLogo} style={styles.teamLogo} contentFit="contain" />
                                 ) : (
                                     <Text style={styles.teamInitial}>{awayTeam.charAt(0)}</Text>
                                 )}
@@ -81,6 +88,30 @@ export default function NextMatchCard({
                     </>
                 )}
             </View>
+
+            {timeLeft && (
+                <>
+                    <View style={styles.divider} />
+                    <View style={styles.countdownRow}>
+                        <View style={styles.countdownItem}>
+                            <Text style={styles.countdownValue}>{timeLeft.days}</Text>
+                            <Text style={styles.countdownLabel}>GIORNI</Text>
+                        </View>
+                        <View style={styles.countdownItem}>
+                            <Text style={styles.countdownValue}>{timeLeft.hours}</Text>
+                            <Text style={styles.countdownLabel}>ORE</Text>
+                        </View>
+                        <View style={styles.countdownItem}>
+                            <Text style={styles.countdownValue}>{timeLeft.minutes}</Text>
+                            <Text style={styles.countdownLabel}>MIN</Text>
+                        </View>
+                        {/* <View style={styles.countdownItem}>
+                            <Text style={styles.countdownValue}>{timeLeft.seconds}</Text>
+                            <Text style={styles.countdownLabel}>SEC</Text>
+                        </View> */}
+                    </View>
+                </>
+            )}
 
 
 
@@ -240,5 +271,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 4,
         fontStyle: 'italic',
-    }
+    },
+    countdownRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+    countdownItem: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 8, alignItems: 'center' },
+    countdownValue: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+    countdownLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 8, fontWeight: '700', marginTop: 2 },
 });

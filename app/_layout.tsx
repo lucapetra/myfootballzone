@@ -1,3 +1,4 @@
+import { MockMatchProvider } from '@/context/MockMatchContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -103,7 +104,9 @@ export default function RootLayout() {
   return (
     <CustomThemeProvider>
       <SettingsProvider>
-        <RootLayoutNav />
+        <MockMatchProvider>
+          <RootLayoutNav />
+        </MockMatchProvider>
       </SettingsProvider>
     </CustomThemeProvider>
   );

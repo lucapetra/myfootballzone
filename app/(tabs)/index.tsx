@@ -1,3 +1,4 @@
+import { useMockMatch } from '@/context/MockMatchContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
 import { fetchNextMatch, MatchData } from '@/services/matchService';
@@ -50,32 +51,11 @@ export default function HomeScreen() {
   const { mockDataEnabled } = useSettings();
 
   // Mock Data
-  const mockMatch: MatchData = {
-    event_type: 'match',
-    home: 'A.C. MILANESE',
-    away: 'ASD SAN SIRO',
-    date: 'Domenica 22 Ottobre',
-    isoDate: '2026-10-22T15:00:00',
-    time: '20:45',
-    location: {
-      name: 'Stadio San Siro',
-      address: 'Piazzale Angelo Moratti, Milano',
-      lat: 45.4781,
-      lng: 9.1240
-    },
-    home_team_logo: null,
-    away_team_logo: null,
-    weather: {
-      temp: '18°C',
-      condition: 'Pioggia leggera',
-      cleats: 'SG',
-      cleatsDesc: 'Terreno morbido'
-    },
-    callups: {
-      confirmed: 14,
-      total: 18
-    }
-  };
+  // Mock Data - Dynamic Next Sunday
+  // Mock Data removed
+
+
+  const { mockMatch } = useMockMatch();
 
   // Real Next Match Fallback
   const realNextMatch: MatchData = {
@@ -119,7 +99,7 @@ export default function HomeScreen() {
           const minLoadTime = new Promise(resolve => setTimeout(resolve, 1500));
           try {
             const results = await Promise.all([
-              mockDataEnabled ? Promise.resolve(mockMatch) : fetchNextMatch(),
+              mockDataEnabled && mockMatch ? Promise.resolve(mockMatch) : fetchNextMatch(),
               minLoadTime
             ]);
             const match = results[0];
@@ -137,21 +117,24 @@ export default function HomeScreen() {
           }
         } else {
           // Silent Refresh (Background)
-          if (!mockDataEnabled) {
+          if (mockDataEnabled) {
+            if (mockMatch && JSON.stringify(mockMatch) !== JSON.stringify(nextMatch)) {
+              console.log('Updating mock match from context');
+              setNextMatch(mockMatch);
+            }
+          } else {
             try {
               const match = await fetchNextMatch();
               if (match) setNextMatch(match);
             } catch (e) {
               console.log("Silent refresh error:", e);
             }
-          } else {
-            setNextMatch(mockMatch);
           }
         }
       };
 
       loadData();
-    }, [mockDataEnabled, loading])
+    }, [mockDataEnabled, loading, mockMatch, nextMatch?.isoDate])
   );
 
   const calculateTimeLeft = () => {
@@ -287,6 +270,7 @@ export default function HomeScreen() {
                 awayLogo={nextMatch.away_team_logo}
                 eventType={nextMatch.event_type}
                 theme={theme}
+                timeLeft={timeLeft}
               />
 
               {/* Date Card */}

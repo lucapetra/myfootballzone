@@ -10,10 +10,13 @@ export default function WelcomeScreen() {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" translucent />
 
-            {/* Background Image */}
             <Image
-                source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWyPGAeKv-_BpUlU3r-IpX5s8C9dA1ABgu0uNWnxIiJg4oakHS00RfNCa5p5ZC9dW36NhITqraALk1heamZK65fcoxQmAgWP0iPzEatjsJQ_kdyvQ1Zr3RhQFVJs0LKKVSgYHYNsRCtA98NBgIp3z8rRIK34q4LEIZkU4RsjzMh3g9PyrmI5DVto3xlopX87gLH6w6NtJZgn7JBzKQmtkunrUMzgO9Emmbuu60cb7PnosluCGqTgTCVeT8W5d50Tk79HEAiHRrxXhU' }}
-                style={styles.image}
+                source={require('../../assets/images/welcomeScreenBackground.jpg')}
+                style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                }}
                 resizeMode="cover"
             />
 
@@ -40,7 +43,7 @@ export default function WelcomeScreen() {
                     onPress={() => router.push('/(auth)/login')}
                     activeOpacity={0.9}
                 >
-                    <Text style={styles.buttonText}>Inizia Ora</Text>
+                    <Text style={styles.buttonText}>Inizia ora</Text>
                 </TouchableOpacity>
 
 
@@ -54,12 +57,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#000',
     },
-    image: {
-        ...StyleSheet.absoluteFillObject,
-    },
     gradient: {
         ...StyleSheet.absoluteFillObject,
-        top: '30%',
+        top: '20%',
     },
     content: {
         flex: 1,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     button: {
-        backgroundColor: '#1E6B3E',
+        backgroundColor: '#31b261ff',
         borderRadius: 16,
         height: 56,
         justifyContent: 'center',
