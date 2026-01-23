@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function WelcomeScreen() {
+export default function TeamScreen() {
     const router = useRouter();
 
     return (
@@ -11,7 +11,7 @@ export default function WelcomeScreen() {
             <StatusBar barStyle="light-content" translucent />
 
             <Image
-                source={require('../../assets/images/welcomeBackground.jpeg')}
+                source={require('../../assets/images/coachWithPlayer.png')}
                 style={{
                     position: 'absolute',
                     width: '100%',
@@ -22,7 +22,7 @@ export default function WelcomeScreen() {
 
             {/* Overlay Gradient */}
             <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)', '#000000']}
+                colors={['transparent', 'rgba(0,0,0,0.6)', '#000000']}
                 style={styles.gradient}
             />
 
@@ -30,30 +30,27 @@ export default function WelcomeScreen() {
             <View style={styles.content}>
                 <View style={styles.textContainer}>
                     <Text style={styles.title}>
-                        Tutto per la tua squadra{'\n'}
-                        <Text style={styles.highlight}>in un unico posto.</Text>
+                        Cresci col <Text style={styles.highlight}>Tuo Team</Text>
                     </Text>
                     <Text style={styles.subtitle}>
-                        Logistica, statistiche e contatti per la tua prossima partita. Gestisci la tua rosa come un professionista.
+                        Segui i progressi dei tuoi giocatori, analizza le prestazioni e porta la tua squadra al livello successivo.
                     </Text>
                 </View>
 
                 {/* Progress Indicators */}
                 <View style={styles.indicatorContainer}>
-                    <View style={[styles.indicator, styles.activeIndicator]} />
                     <View style={styles.indicator} />
+                    <View style={[styles.indicator, styles.activeIndicator]} />
                     <View style={styles.indicator} />
                 </View>
 
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => router.push('/onboarding/intro')}
+                    onPress={() => router.push('/onboarding/coach')}
                     activeOpacity={0.9}
                 >
-                    <Text style={styles.buttonText}>Inizia ora</Text>
+                    <Text style={styles.buttonText}>D'accordo!</Text>
                 </TouchableOpacity>
-
-
             </View>
         </View>
     );
@@ -126,18 +123,5 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 18,
         fontWeight: '700',
-    },
-    loginContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-    },
-    loginText: {
-        color: '#94a3b8',
-        fontSize: 14,
-    },
-    loginLink: {
-        color: '#4ADE80',
-        fontWeight: '700',
-        fontSize: 14,
     },
 });

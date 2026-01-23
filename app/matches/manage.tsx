@@ -1,16 +1,15 @@
 import { useMockMatch } from '@/context/MockMatchContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
-import { fetchNextMatch, MatchData, uploadTeamLogo, upsertMatch } from '@/services/matchService';
+import { fetchNextMatch, MatchData, upsertMatch } from '@/services/matchService';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker'; // Removed
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -146,23 +145,7 @@ export default function ManageMatch() {
         Platform.OS !== 'web' && require('react-native').Keyboard.dismiss();
     };
 
-    const pickImage = async (isHome: boolean) => {
-        // In mock mode, we might want to allow picking from gallery, but for now we keep it same.
-        // If it's a number (local asset), we can't really replace it with gallery image easily unless we change state type.
-        // We updated state type to allow number.
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-        });
-
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            if (isHome) setHomeLogo(uri);
-            else setAwayLogo(uri);
-        }
-    };
+    // pickImage removed
 
     const handleSave = async () => {
         try {
@@ -219,17 +202,9 @@ export default function ManageMatch() {
 
             setSaving(true);
 
-            let finalHomeLogo: string | null = typeof homeLogo === 'string' ? homeLogo : null;
-            let finalAwayLogo: string | null = typeof awayLogo === 'string' ? awayLogo : null;
-
-            if (typeof homeLogo === 'string' && homeLogo.startsWith('file://') && homeTeam) {
-                const uploaded = await uploadTeamLogo(homeLogo, homeTeam);
-                if (uploaded) finalHomeLogo = uploaded;
-            }
-            if (typeof awayLogo === 'string' && awayLogo.startsWith('file://') && awayTeam) {
-                const uploaded = await uploadTeamLogo(awayLogo, awayTeam);
-                if (uploaded) finalAwayLogo = uploaded;
-            }
+            // Upload logic removed
+            let finalHomeLogo: string | null = null;
+            let finalAwayLogo: string | null = null;
 
             await upsertMatch(
                 eventType,
@@ -364,15 +339,7 @@ export default function ManageMatch() {
                     {eventType === 'match' && (
                         <View style={styles.teamsSection}>
                             <View style={styles.teamInputContainer}>
-                                <TouchableOpacity onPress={() => pickImage(true)} style={styles.logoPlaceholder}>
-                                    {homeLogo ? (
-                                        <Image source={typeof homeLogo === 'string' ? { uri: homeLogo } : homeLogo} style={styles.logoPreview} />
-                                    ) : (
-                                        <View style={[styles.logoCircle, { borderColor: theme.border }]}>
-                                            <Ionicons name="camera" size={20} color={theme.textSecondary} />
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
+                                {/* Logo Upload Removed */}
                                 <TextInput
                                     placeholder="Squadra in casa"
                                     placeholderTextColor={theme.textSecondary}
@@ -385,15 +352,7 @@ export default function ManageMatch() {
                             <Text style={[styles.vsText, { color: theme.textSecondary }]}>VS</Text>
 
                             <View style={styles.teamInputContainer}>
-                                <TouchableOpacity onPress={() => pickImage(false)} style={styles.logoPlaceholder}>
-                                    {awayLogo ? (
-                                        <Image source={typeof awayLogo === 'string' ? { uri: awayLogo } : awayLogo} style={styles.logoPreview} />
-                                    ) : (
-                                        <View style={[styles.logoCircle, { borderColor: theme.border }]}>
-                                            <Ionicons name="camera" size={20} color={theme.textSecondary} />
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
+                                {/* Logo Upload Removed */}
                                 <TextInput
                                     placeholder="Squadra ospite"
                                     placeholderTextColor={theme.textSecondary}

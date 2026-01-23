@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -40,12 +41,16 @@ export default function CoachScreen() {
                 {/* Progress Indicators */}
                 <View style={styles.indicatorContainer}>
                     <View style={styles.indicator} />
+                    <View style={styles.indicator} />
                     <View style={[styles.indicator, styles.activeIndicator]} />
                 </View>
 
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => router.push('/(auth)/login')}
+                    onPress={async () => {
+                        await AsyncStorage.setItem('hasLaunched', 'true');
+                        router.push('/(auth)/login');
+                    }}
                     activeOpacity={0.9}
                 >
                     <Text style={styles.buttonText}>Sono pronto!</Text>

@@ -1,8 +1,9 @@
 import { BlurView } from 'expo-blur';
-import { Image } from 'expo-image';
+// import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Avatar from './Avatar';
 
 interface MatchResult {
     result: 'W' | 'D' | 'L';
@@ -62,11 +63,7 @@ export default function NextMatchCard({
                     <>
                         <View style={styles.teamContainer}>
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
-                                {homeLogo ? (
-                                    <Image source={typeof homeLogo === 'string' ? { uri: homeLogo } : homeLogo} style={styles.teamLogo} contentFit="contain" />
-                                ) : (
-                                    <Text style={styles.teamInitial}>{homeTeam.charAt(0)}</Text>
-                                )}
+                                <Avatar name={homeTeam} size={60} style={{ backgroundColor: 'transparent' }} fontSize={24} />
                             </BlurView>
                             <Text style={styles.teamName} numberOfLines={2}>{homeTeam}</Text>
                         </View>
@@ -77,11 +74,7 @@ export default function NextMatchCard({
 
                         <View style={styles.teamContainer}>
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
-                                {awayLogo ? (
-                                    <Image source={typeof awayLogo === 'string' ? { uri: awayLogo } : awayLogo} style={styles.teamLogo} contentFit="contain" />
-                                ) : (
-                                    <Text style={styles.teamInitial}>{awayTeam.charAt(0)}</Text>
-                                )}
+                                <Avatar name={awayTeam} size={60} style={{ backgroundColor: 'transparent' }} fontSize={24} />
                             </BlurView>
                             <Text style={styles.teamName} numberOfLines={2}>{awayTeam}</Text>
                         </View>

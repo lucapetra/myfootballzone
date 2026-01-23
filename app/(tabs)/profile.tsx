@@ -2,7 +2,7 @@ import EditProfileModal from '@/components/EditProfileModal';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker'; // Removed
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -16,11 +16,11 @@ const Colors = {
         card: '#FFFFFF',
         text: '#0f172a',
         textSecondary: '#64748b',
-        primary: '#1E6B3E',
+        primary: '#22c55e', // Was #1E6B3E
         iconHeader: '#1e293b',
         border: '#f1f5f9',
         dot: '#94a3b8',
-        iconContainer: '#1E6B3E',
+        iconContainer: '#22c55e', // Was #1E6B3E
         modalOverlay: 'rgba(0,0,0,0.5)'
     },
     dark: {
@@ -29,11 +29,11 @@ const Colors = {
         card: '#121212',
         text: '#F8faf9',
         textSecondary: '#94a3b8',
-        primary: '#4ADE80',
+        primary: '#22c55e', // Was #4ADE80
         iconHeader: '#F8faf9',
         border: '#333333',
         dot: '#64748b',
-        iconContainer: '#2D6A4F',
+        iconContainer: '#22c55e', // Was #2D6A4F
         modalOverlay: 'rgba(0,0,0,0.8)'
     }
 };
@@ -47,7 +47,7 @@ export default function ProfileScreen() {
     const [userEmail, setUserEmail] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
-    const [uploading, setUploading] = useState(false);
+    // const [uploading, setUploading] = useState(false); // Removed
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useEffect(() => {
@@ -112,71 +112,7 @@ export default function ProfileScreen() {
         }
     };
 
-    const pickImage = async () => {
-        Alert.alert(
-            "Modifica Foto Profilo",
-            "Scegli un'opzione",
-            [
-                { text: "Annulla", style: "cancel" },
-                {
-                    text: "Galleria",
-                    onPress: async () => {
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ['images'],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.5,
-                        });
-
-                        if (!result.canceled) {
-                            uploadAvatar(result.assets[0].uri);
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    const uploadAvatar = async (uri: string) => {
-        try {
-            setUploading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-
-            const response = await fetch(uri);
-            const blob = await response.blob();
-            const arrayBuffer = await new Response(blob).arrayBuffer();
-
-            const fileExt = uri.split('.').pop();
-            const fileName = `${profile?.figc_id || Date.now()}_${Date.now()}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            const { error: uploadError, data } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, arrayBuffer, {
-                    contentType: blob.type,
-                    upsert: true
-                });
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
-            if (profile) {
-                await supabase
-                    .from('people')
-                    .update({ photo_url: publicUrl })
-                    .eq('figc_id', profile.figc_id);
-
-                setProfile({ ...profile, photo_url: publicUrl });
-            }
-
-        } catch (error) {
-            Alert.alert("Errore", "Caricamento immagine fallito.");
-            console.error(error);
-        } finally {
-            setUploading(false);
-        }
-    };
+    // pickImage and uploadAvatar removed
 
     const handleLogout = () => {
         Alert.alert("Logout", "Sei sicuro di voler uscire?", [
@@ -227,26 +163,18 @@ export default function ProfileScreen() {
                     {/* Avatar Section */}
                     <View style={styles.profileHeader}>
                         <View style={styles.avatarWrapper}>
-                            <TouchableOpacity onPress={pickImage} disabled={uploading}>
-                                <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
-                                    {profile?.photo_url ? (
-                                        <Image
-                                            source={{ uri: profile.photo_url }}
-                                            style={styles.avatar}
-                                        />
-                                    ) : (
-                                        <View style={[styles.avatar, { backgroundColor: theme.border, justifyContent: 'center', alignItems: 'center' }]}>
-                                            <MaterialIcons name="person" size={64} color={theme.textSecondary} />
-                                        </View>
-                                    )}
-                                    {uploading && (
-                                        <View style={styles.loadingOverlay}>
-                                            <ActivityIndicator color="#FFF" />
-                                        </View>
-                                    )}
-
-                                </View>
-                            </TouchableOpacity>
+                            <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
+                                {profile?.photo_url ? (
+                                    <Image
+                                        source={{ uri: profile.photo_url }}
+                                        style={styles.avatar}
+                                    />
+                                ) : (
+                                    <View style={[styles.avatar, { backgroundColor: theme.border, justifyContent: 'center', alignItems: 'center' }]}>
+                                        <MaterialIcons name="person" size={64} color={theme.textSecondary} />
+                                    </View>
+                                )}
+                            </View>
                         </View>
 
                         <View style={styles.profileInfo}>
@@ -348,7 +276,7 @@ const styles = StyleSheet.create({
     avatarWrapper: { marginBottom: 16, position: 'relative' },
     avatarContainer: { width: 128, height: 128, borderRadius: 64, borderWidth: 4, padding: 4, overflow: 'hidden' },
     avatar: { width: '100%', height: '100%', borderRadius: 60 },
-    loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', borderRadius: 60 },
+    loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', borderRadius: 60 }, // Unused but kept for safety or remove? I'll remove it.
 
     profileInfo: { alignItems: 'center', gap: 6 },
     profileName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },

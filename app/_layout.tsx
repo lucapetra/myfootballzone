@@ -2,6 +2,7 @@ import { MockMatchProvider } from '@/context/MockMatchContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -14,10 +15,16 @@ function RootLayoutNav() {
   // Init Session
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null); // New state
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // Check if first launch
+    AsyncStorage.getItem('hasLaunched').then(value => {
+      setIsFirstLaunch(value === null);
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
@@ -51,19 +58,25 @@ function RootLayoutNav() {
   };
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isFirstLaunch === null) return; // Wait for both
 
     checkOnboarding();
-  }, [session, isLoading]); // Removed 'segments' to prevent re-run on navigation changes
+  }, [session, isLoading, isFirstLaunch]);
 
   const checkOnboarding = async () => {
     try {
       const inAuthGroup = segments[0] === '(auth)';
       const inOnboardingGroup = segments[0] === 'onboarding';
 
-      if (!session && !inOnboardingGroup && !inAuthGroup) {
-        // Not logged in: Always go to Welcome Screen (Onboarding)
-        router.replace('/onboarding');
+      if (!session) {
+        // Not logged in
+        if (isFirstLaunch && !inOnboardingGroup) {
+          // First time ever -> Go to Onboarding
+          router.replace('/onboarding');
+        } else if (!isFirstLaunch && !inAuthGroup && !inOnboardingGroup) {
+          // Not first time, but not authenticated -> Go to Login (skip onboarding)
+          router.replace('/(auth)/login');
+        }
       } else if (session && inAuthGroup) {
         // Logged in but in auth group: Go to tabs
         router.replace('/(tabs)');

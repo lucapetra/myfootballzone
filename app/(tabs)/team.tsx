@@ -1,7 +1,7 @@
+import Avatar from '@/components/Avatar';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,18 +25,21 @@ type TabType = 'staff' | 'players';
 // Color Palette
 const Colors = {
     light: {
-        background: '#f8faf9',
+        background: '#f8fafc',
+        headerBackground: 'rgba(248,250,252,0.8)',
         card: '#FFFFFF',
         text: '#0f172a',
         textSecondary: '#64748b',
-        primary: '#2D6A4F',
+        primary: '#22c55e',
         searchBackground: '#E9F5EF',
         tabBackground: 'rgba(226, 232, 240, 0.5)',
         tabActive: '#FFFFFF',
-        border: '#e2e8f0'
+        border: '#e2e8f0',
+        iconBox: 'rgba(34, 197, 94, 0.1)'
     },
     dark: {
         background: '#020403',
+        headerBackground: 'rgba(2, 4, 3, 0.8)',
         card: '#121212',
         text: '#F8faf9',
         textSecondary: '#94a3b8',
@@ -44,7 +47,8 @@ const Colors = {
         searchBackground: '#1E1E1E',
         tabBackground: 'rgba(255, 255, 255, 0.1)',
         tabActive: '#2C2C2C',
-        border: '#333333'
+        border: '#333333',
+        iconBox: 'rgba(74, 222, 128, 0.1)'
     }
 };
 
@@ -55,6 +59,7 @@ export default function TeamScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [staffList, setStaffList] = useState<Person[]>([]);
     const [playerList, setPlayerList] = useState<Person[]>([]);
+    const [activeTab, setActiveTab] = useState<TabType>('players');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -66,10 +71,8 @@ export default function TeamScreen() {
             setLoading(true);
 
             if (mockDataEnabled) {
-                // MOCK DATA
+                // MOCK DATA - Simplified: Only Coach and Players
                 const mockStaff = [
-                    { id: '1', name: 'Mario Rossi', role: 'Presidente', label: 'PRES', image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a' },
-                    { id: '2', name: 'Luigi Verdi', role: 'Direttore Sportivo', label: 'DS', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e' },
                     { id: '3', name: 'Carlo Bianchi', role: 'Allenatore', label: 'MISTER', image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7' }
                 ];
                 const mockPlayers: Person[] = [
@@ -78,6 +81,9 @@ export default function TeamScreen() {
                     { id: '13', name: 'Sandro Tonali', role: 'Centrocampista', category: 'Centrocampisti', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d', number: 8, isCaptain: false, status: 'active' },
                     { id: '14', name: 'Rafael Leao', role: 'Attaccante', category: 'Attaccanti', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e', number: 10, isCaptain: false, status: 'active' }
                 ];
+                // Sort players alphabetically
+                mockPlayers.sort((a, b) => a.name.localeCompare(b.name));
+
                 setStaffList(mockStaff);
                 setPlayerList(mockPlayers);
                 setLoading(false);
@@ -119,36 +125,29 @@ export default function TeamScreen() {
                         id: membership.id,
                         name: fullName,
                         role: person.role_primary || 'Giocatore',
-                        category: mapRoleToCategory(person.role_primary),
+                        category: mapRoleToCategory(person.role_primary), // Keep for now if used elsewhere, but not for grouping
                         image: photo,
                         number: membership.shirt_number,
                         isCaptain: false,
                         status: 'active'
                     });
                 } else {
-                    staff.push({
-                        id: membership.id,
-                        name: fullName,
-                        role: getStaffDisplayRole(membership.role),
-                        label: getStaffLabel(membership.role),
-                        image: photo
-                    });
+                    // Filter Staff: ONLY Allenatore
+                    const roleLower = membership.role?.toLowerCase() || '';
+                    if (roleLower.includes('allenatore') || roleLower.includes('coach') || roleLower.includes('mister')) {
+                        staff.push({
+                            id: membership.id,
+                            name: fullName,
+                            role: 'Allenatore', // Normalize role name
+                            label: 'MISTER',
+                            image: photo
+                        });
+                    }
                 }
             });
 
-            // Specific sorting for Staff
-            const staffOrder = ['PRES', 'DS', 'MISTER', 'GK COACH', 'MASSAGGIATORE', 'DIRIGENTE', 'STAFF'];
-            staff.sort((a, b) => {
-                const indexA = staffOrder.indexOf(a.label || 'STAFF');
-                const indexB = staffOrder.indexOf(b.label || 'STAFF');
-                return indexA - indexB;
-            });
-
-            // Collect all unique image URLs for pre-fetching
-            const allImages = [...staff.map(s => s.image), ...players.map(p => p.image)].filter(Boolean);
-            if (allImages.length > 0) {
-                Image.prefetch(allImages);
-            }
+            // Sort Players Alphabetically
+            players.sort((a, b) => a.name.localeCompare(b.name));
 
             setPlayerList(players);
             setStaffList(staff);
@@ -201,13 +200,7 @@ export default function TeamScreen() {
         playerList.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())),
         [playerList, searchQuery]);
 
-    const groupedPlayers = useMemo(() => ({
-        Portieri: filteredPlayers.filter(p => p.category === 'Portieri'),
-        Difensori: filteredPlayers.filter(p => p.category === 'Difensori'),
-        Centrocampisti: filteredPlayers.filter(p => p.category === 'Centrocampisti'),
-        Attaccanti: filteredPlayers.filter(p => p.category === 'Attaccanti'),
-        Altri: filteredPlayers.filter(p => p.category === 'Altri' || p.category === 'Non definito'),
-    }), [filteredPlayers]);
+    // const groupedPlayers = useMemo(() => ({ ... }), ...); // Removed for Simplification
 
     const renderSectionHeader = (title: string, icon: keyof typeof MaterialIcons.glyphMap) => (
         <View style={styles.sectionHeader}>
@@ -219,7 +212,7 @@ export default function TeamScreen() {
     const renderStaffCard = useCallback((staff: Person) => (
         <View key={staff.id} style={[styles.card, { backgroundColor: theme.card }, staff.label === 'PRES' && styles.presidentCard]}>
             <View style={styles.avatarContainer}>
-                <Image source={staff.image} style={styles.avatar} contentFit="cover" transition={0} />
+                <Avatar name={staff.name} size={64} style={styles.avatar} />
                 {staff.label && (
                     <View style={[styles.badgeContainer, { backgroundColor: staff.label === 'PRES' ? '#facc15' : theme.searchBackground }]}>
                         <Text style={[
@@ -247,17 +240,13 @@ export default function TeamScreen() {
     const renderPlayerCard = useCallback((player: Person) => (
         <View key={player.id} style={[styles.card, { backgroundColor: theme.card }, player.isCaptain && styles.captainCard]}>
             <View style={styles.avatarContainer}>
-                <Image source={player.image} style={styles.avatar} contentFit="cover" transition={0} />
-                {player.number != null && (
-                    <View style={styles.numberBadge}>
-                        <Text style={styles.numberText}>{player.number}</Text>
-                    </View>
-                )}
+                <Avatar name={player.name} size={64} style={styles.avatar} />
+                {/* Jersey Number Removed */}
             </View>
             <View style={styles.cardContent}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={[styles.cardName, { color: theme.text }]}>{player.name}</Text>
-                    {player.status === 'active' && <View style={styles.activeDot} />}
+                    {/* Active Dot Removed */}
                     {player.isCaptain && (
                         <View style={styles.captainBadge}>
                             <Text style={styles.captainText}>CAPITANO</Text>
@@ -279,30 +268,28 @@ export default function TeamScreen() {
     ), [filteredStaff, renderStaffCard, theme.textSecondary]);
 
     const playersContent = useMemo(() => (
-        <>
-            {Object.entries(groupedPlayers).map(([category, players]) => (
-                players.length > 0 && (
-                    <View key={category} style={styles.section}>
-                        {renderSectionHeader(category, category === 'Portieri' ? 'pan-tool' : category === 'Difensori' ? 'shield' : category.includes('Centrocampisti') ? 'alt-route' : 'track-changes')}
-                        <View style={styles.cardList}>
-                            {players.map(renderPlayerCard)}
-                        </View>
-                    </View>
-                )
-            ))}
-            {filteredPlayers.length === 0 && <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nessun giocatore trovato.</Text>}
-        </>
-    ), [groupedPlayers, filteredPlayers.length, renderPlayerCard, theme.textSecondary]);
+        <View style={styles.section}>
+            {/* Optional Header for Players if desired, or just list them */}
+            {filteredPlayers.length > 0 && renderSectionHeader('Giocatori', 'groups')}
+            <View style={styles.cardList}>
+                {filteredPlayers.length > 0 ? (
+                    filteredPlayers.map(renderPlayerCard)
+                ) : (
+                    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nessun giocatore trovato.</Text>
+                )}
+            </View>
+        </View>
+    ), [filteredPlayers, renderPlayerCard, theme.textSecondary]);
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <SafeAreaView edges={['top']} style={{ backgroundColor: theme.background }}>
                 {/* Header Code omitted for brevity, logic remains same */}
-                <View style={styles.header}>
+                <View style={[styles.header, { backgroundColor: theme.headerBackground, borderBottomColor: theme.border }]}>
                     <View style={styles.headerTop}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <View style={[styles.logoContainer, { backgroundColor: theme.searchBackground }]}>
-                                <MaterialIcons name="sports-soccer" size={28} color={theme.primary} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={[styles.logoContainer, { backgroundColor: theme.iconBox }]}>
+                                <Ionicons name="football" size={24} color={theme.primary} />
                             </View>
                             <Text style={[styles.appTitle, { color: theme.text }]}>MyFootballZone</Text>
                         </View>
@@ -320,7 +307,23 @@ export default function TeamScreen() {
                         />
                     </View>
 
-                    {/* Tab Switcher Removed */}
+                    {/* Tab Switcher */}
+                    <View style={[styles.tabContainer, { backgroundColor: theme.tabBackground }]}>
+                        <TouchableOpacity
+                            style={[styles.tabButton, activeTab === 'staff' && styles.tabActive, activeTab === 'staff' && { backgroundColor: theme.tabActive }]}
+                            onPress={() => setActiveTab('staff')}
+                        >
+                            <MaterialIcons name="record-voice-over" size={18} color={activeTab === 'staff' ? theme.primary : theme.textSecondary} />
+                            <Text style={[styles.tabText, { color: activeTab === 'staff' ? theme.primary : theme.textSecondary }]}>Staff</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabButton, activeTab === 'players' && styles.tabActive, activeTab === 'players' && { backgroundColor: theme.tabActive }]}
+                            onPress={() => setActiveTab('players')}
+                        >
+                            <MaterialIcons name="groups" size={18} color={activeTab === 'players' ? theme.primary : theme.textSecondary} />
+                            <Text style={[styles.tabText, { color: activeTab === 'players' ? theme.primary : theme.textSecondary }]}>Rosa</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </SafeAreaView>
 
@@ -332,28 +335,18 @@ export default function TeamScreen() {
             ) : (
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={true}>
 
-                    {/* Staff Section */}
-                    {filteredStaff.length > 0 && (
-                        <View style={styles.section}>
-                            {renderSectionHeader('Staff Societario', 'record-voice-over')}
-                            {staffContent}
-                        </View>
-                    )}
-
-                    {/* Players Section */}
-                    {Object.entries(groupedPlayers).map(([category, players]) => (
-                        players.length > 0 && (
-                            <View key={category} style={styles.section}>
-                                {renderSectionHeader(category, category === 'Portieri' ? 'pan-tool' : category === 'Difensori' ? 'shield' : category.includes('Centrocampisti') ? 'alt-route' : 'track-changes')}
-                                <View style={styles.cardList}>
-                                    {players.map(renderPlayerCard)}
-                                </View>
+                    {/* Content based on Active Tab */}
+                    {activeTab === 'staff' ? (
+                        filteredStaff.length > 0 ? (
+                            <View style={styles.section}>
+                                {renderSectionHeader('Staff Societario', 'record-voice-over')}
+                                {staffContent}
                             </View>
+                        ) : (
+                            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nessun membro dello staff trovato.</Text>
                         )
-                    ))}
-
-                    {filteredStaff.length === 0 && filteredPlayers.length === 0 && (
-                        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nessun risultato trovato.</Text>
+                    ) : (
+                        playersContent
                     )}
 
                     <View style={{ height: 100 }} />
@@ -367,10 +360,10 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
     loadingText: { fontSize: 16, fontWeight: '500' },
-    header: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 12 },
+    header: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 12, borderBottomWidth: 1 },
     headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    logoContainer: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    appTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+    logoContainer: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    appTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
 
     searchContainer: {
         flexDirection: 'row',
@@ -403,7 +396,7 @@ const styles = StyleSheet.create({
     captainCard: { borderLeftWidth: 4, borderLeftColor: '#facc15' },
 
     avatarContainer: { position: 'relative' },
-    avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#f1f5f9' },
+    avatar: { width: 64, height: 64, borderRadius: 32 },
     badgeContainer: { position: 'absolute', bottom: -4, right: -4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     badgeText: { fontSize: 9, fontWeight: '900' },
 
