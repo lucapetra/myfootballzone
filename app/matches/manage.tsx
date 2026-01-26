@@ -1,12 +1,11 @@
 import { useMockMatch } from '@/context/MockMatchContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
-import { fetchNextMatch, MatchData, upsertMatch } from '@/services/matchService';
+import { deleteMatch, fetchLastCreatedEvent, fetchMatchById, MatchData, upsertMatch } from '@/services/matchService';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-// import * as ImagePicker from 'expo-image-picker'; // Removed
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,6 +18,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 // Color Palette
 const Colors = {
@@ -61,48 +61,91 @@ export default function ManageMatch() {
     const [saving, setSaving] = useState(false);
 
     // Form State
-    const [eventType, setEventType] = useState<'match' | 'training'>('match');
+    const [eventType, setEventType] = useState<'match' | 'training' | 'event' | 'trial'>('match');
     const [homeTeam, setHomeTeam] = useState('');
     const [awayTeam, setAwayTeam] = useState('');
     const [startDateTime, setStartDateTime] = useState(new Date());
     const [locationText, setLocationText] = useState('');
+    const [locationShortText, setLocationShortText] = useState(''); // For DB name (Street + Number)
     const [locationLat, setLocationLat] = useState<number | null>(null);
     const [locationLng, setLocationLng] = useState<number | null>(null);
-    const [locationAddress, setLocationAddress] = useState<string | null>(null);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
-
-    // MOCK LOCATIONS DATABASE
-    const MOCK_LOCATIONS = [
-        { name: 'Campo San Maurizio', address: 'Via Ceretta Inferiore 24, San Maurizio', lat: 45.215, lng: 7.633 },
-        { name: 'Allianz Stadium', address: 'Corso Gaetano Scirea 50, Torino', lat: 45.109, lng: 7.641 },
-        { name: 'Stadio Olimpico Grande Torino', address: 'Via Filadelfia 96/b, Torino', lat: 45.042, lng: 7.650 },
-        { name: 'San Siro', address: 'Piazzale Angelo Moratti, Milano', lat: 45.478, lng: 9.124 },
-        { name: 'Campo Sportivo Settimo', address: 'Via Primo Levi, Settimo Torinese', lat: 45.136, lng: 7.770 },
-        { name: 'Centro Vinovo', address: 'Via Stupinigi 182, Vinovo', lat: 44.978, lng: 7.615 }
-    ];
+    const [locationAddress, setLocationAddress] = useState<string | null>(null); // For DB address (Full)
+    const [locationCity, setLocationCity] = useState<string>(''); // For DB city
+    const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+    const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
 
     // Logos
     const [homeLogo, setHomeLogo] = useState<string | null | number>(null);
     const [awayLogo, setAwayLogo] = useState<string | null | number>(null);
 
+    const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
+    const [originalEventType, setOriginalEventType] = useState<'match' | 'training' | 'event' | 'trial' | null>(null);
+
+    // Keyboard Animation
+    const keyboardHeight = useSharedValue(0);
+
+    // Listen to keyboard events
+    React.useEffect(() => {
+        const showSubscription = Platform.OS !== 'web' && require('react-native').Keyboard.addListener(
+            'keyboardWillShow',
+            (e: any) => {
+                keyboardHeight.value = withTiming(e.endCoordinates.height, { duration: 250 });
+            }
+        );
+        const hideSubscription = Platform.OS !== 'web' && require('react-native').Keyboard.addListener(
+            'keyboardWillHide',
+            () => {
+                keyboardHeight.value = withTiming(0, { duration: 250 });
+            }
+        );
+
+        return () => {
+            showSubscription && showSubscription.remove();
+            hideSubscription && hideSubscription.remove();
+        };
+    }, []);
+
+    const keyboardStyle = useAnimatedStyle(() => ({
+        paddingBottom: keyboardHeight.value,
+    }));
+
+    // Debounce timer for location search
+    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         if (isEditMode) {
             loadMatchData();
         }
-    }, [isEditMode]);
+    }, [isEditMode, params.id]);
 
     const loadMatchData = async () => {
         try {
             setLoading(true);
-            const data = mockDataEnabled ? mockMatch : await fetchNextMatch();
+            let data: MatchData | null = null;
+
+            if (params.id) {
+                // Load specific event
+                data = await fetchMatchById(params.id as string);
+                setCurrentMatchId(params.id as string);
+            } else {
+                // Fallback: Load last created (Legacy "Edit Mode" existing behavior)
+                data = mockDataEnabled ? mockMatch : await fetchLastCreatedEvent();
+                if (data?.id) setCurrentMatchId(data.id);
+            }
+
             if (data) {
-                setEventType(data.event_type || 'match');
+                const loadedEventType = data.event_type || 'match';
+                setEventType(loadedEventType);
+                setOriginalEventType(loadedEventType);
                 // Clear generic "Prima Squadra" names so inputs appear empty (placeholder visible)
                 setHomeTeam(data.home === 'Prima Squadra' ? '' : (data.home || ''));
                 setAwayTeam(data.away === 'Prima Squadra' ? '' : (data.away || ''));
                 setStartDateTime(new Date(data.isoDate));
-                setLocationText(data.location?.name || '');
+                // Load Full Address into Input (User wants to see full address in edit)
+                // If data.location.address is present, use it. Otherwise fallback to name.
+                setLocationText(data.location?.address || data.location?.name || '');
+                setLocationShortText(data.location?.name || '');
+
                 setLocationLat(data.location?.lat || null);
                 setLocationLng(data.location?.lng || null);
                 setLocationAddress(data.location?.address || null);
@@ -117,33 +160,110 @@ export default function ManageMatch() {
         }
     };
 
-    const handleLocationChange = (text: string) => {
-        setLocationText(text);
-        if (text.length > 0) {
-            const filtered = MOCK_LOCATIONS.filter(loc =>
-                loc.name.toLowerCase().includes(text.toLowerCase()) ||
-                loc.address.toLowerCase().includes(text.toLowerCase())
-            );
-            setFilteredLocations(filtered);
-            setShowSuggestions(true);
-            // Invalidate coords and address if user types manually (enforcing selection)
-            setLocationLat(null);
-            setLocationLng(null);
-            setLocationAddress(null);
-        } else {
-            setShowSuggestions(false);
+    // Search location using Nominatim (OpenStreetMap) - FREE!
+    const searchLocation = async (query: string) => {
+        // Clear existing timeout
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
         }
+
+        if (query.length < 3) {
+            setLocationSuggestions([]);
+            setShowLocationSuggestions(false);
+            return;
+        }
+
+        // Debounce: wait 1 second after user stops typing
+        searchTimeoutRef.current = setTimeout(async () => {
+            try {
+                // Nominatim requires a User-Agent header
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?` +
+                    `q=${encodeURIComponent(query)}&` +
+                    `format=json&` +
+                    `addressdetails=1&` +
+                    `limit=5&` +
+                    `countrycodes=it&` +
+                    `accept-language=it`,
+                    {
+                        headers: {
+                            'User-Agent': 'MyFootballZone/1.0 (petraluca30@gmail.com)', // More specific User-Agent might be required
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const text = await response.text();
+                // Check if response is valid JSON
+                try {
+                    const data = JSON.parse(text);
+                    setLocationSuggestions(data);
+                    setShowLocationSuggestions(data.length > 0);
+                } catch (e) {
+                    console.error('Invalid JSON response:', text.substring(0, 100)); // Log first 100 chars
+                    setLocationSuggestions([]);
+                    setShowLocationSuggestions(false);
+                }
+            } catch (error) {
+                console.error('Error searching location:', error);
+                setLocationSuggestions([]);
+                setShowLocationSuggestions(false);
+            }
+        }, 1000);
     };
 
-    const selectLocation = (loc: any) => {
-        setLocationText(loc.name);
-        setLocationLat(loc.lat);
-        setLocationLng(loc.lng);
-        setLocationAddress(loc.address);
-        setShowSuggestions(false);
-        // Dismiss keyboard
+    const selectLocation = (location: any) => {
+        const address = location.address || {};
+        // Calculate Short Address (Street + Number)
+        const streetName = address.road || address.pedestrian || address.hamlet || location.display_name.split(',')[0];
+        const houseNumber = address.house_number || '';
+        const shortAddress = houseNumber ? `${streetName} ${houseNumber}` : streetName;
+
+        // Visual text in input = Full Address
+        setLocationText(location.display_name);
+
+        // Store Short Address for DB 'name'
+        setLocationShortText(shortAddress);
+
+        // Coordinates
+        setLocationLat(parseFloat(location.lat));
+        setLocationLng(parseFloat(location.lon));
+
+        // Store Full Address in state for DB 'address'
+        setLocationAddress(location.display_name);
+
+        setShowLocationSuggestions(false);
         Platform.OS !== 'web' && require('react-native').Keyboard.dismiss();
     };
+
+    // Format location for display (street + city only)
+    // Format location for display (street + number + city)
+    const formatLocationDisplay = (location: any) => {
+        const address = location.address || {};
+        const parts = [];
+
+        // Add street/road
+        if (address.road) parts.push(address.road);
+        else if (address.pedestrian) parts.push(address.pedestrian);
+        else if (address.hamlet) parts.push(address.hamlet);
+
+        // Add house number if available
+        if (address.house_number) parts.push(address.house_number);
+
+        // Add city/town/village
+        if (address.city) parts.push(address.city);
+        else if (address.town) parts.push(address.town);
+        else if (address.village) parts.push(address.village);
+        else if (address.municipality) parts.push(address.municipality);
+
+        return parts.length > 0 ? parts.join(', ') : location.display_name;
+    };
+
+
 
     // pickImage removed
 
@@ -177,10 +297,11 @@ export default function ManageMatch() {
                     isoDate: newDate.toISOString(),
                     time: timeStr,
                     location: {
-                        name: locationText,
+                        name: locationShortText || locationText,
                         address: locationAddress || '',
                         lat: locationLat || 0,
-                        lng: locationLng || 0
+                        lng: locationLng || 0,
+                        city: locationCity
                     },
                     home_team_logo: homeLogo,
                     away_team_logo: awayLogo,
@@ -209,14 +330,16 @@ export default function ManageMatch() {
             await upsertMatch(
                 eventType,
                 startDateTime,
-                locationText,
+                locationShortText || locationText, // Use Short name for DB name
                 homeTeam,
                 awayTeam,
                 finalHomeLogo,
                 finalAwayLogo,
                 locationLat, // Pass lat
                 locationLng, // Pass lng
-                locationAddress // Pass address
+                locationAddress || locationText, // Pass address (full)
+                locationCity, // Pass city
+                currentMatchId || undefined // Pass ID for update if exists
             );
 
             Alert.alert('Successo', 'Evento salvato correttamente', [
@@ -228,6 +351,48 @@ export default function ManageMatch() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            'Conferma Eliminazione',
+            'Sei sicuro di voler eliminare questo evento? Questa azione non è reversibile.',
+            [
+                { text: 'Annulla', style: 'cancel' },
+                {
+                    text: 'Elimina',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            if (mockDataEnabled) {
+                                // Mock Delete - requires implementation in context or just generic success
+                                Alert.alert('Info', 'Cancellazione mock non implementata completamente, ma simulo successo.');
+                                if (router.canGoBack()) {
+                                    router.back();
+                                } else {
+                                    router.replace('/(tabs)');
+                                }
+                                return;
+                            }
+
+                            if (currentMatchId) {
+                                await deleteMatch(currentMatchId);
+                                if (router.canGoBack()) {
+                                    router.back();
+                                } else {
+                                    router.replace('/(tabs)');
+                                }
+                            }
+                        } catch (error) {
+                            Alert.alert('Errore', 'Impossibile eliminare l\'evento');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -424,9 +589,9 @@ export default function ManageMatch() {
                         )}
                     </View>
 
-                    {/* Location with Autocomplete */}
+                    {/* Location with Nominatim (Free!) */}
                     <View style={[styles.section, { zIndex: 100 }]}>
-                        <Text style={[styles.label, { color: theme.text, marginBottom: 8 }]}>Luogo (Seleziona dai suggerimenti)</Text>
+                        <Text style={[styles.label, { color: theme.text, marginBottom: 8 }]}>Luogo</Text>
                         <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="location-outline" size={20} color={theme.textSecondary} style={{ marginRight: 8 }} />
                             <TextInput
@@ -434,22 +599,31 @@ export default function ManageMatch() {
                                 placeholderTextColor={theme.textSecondary}
                                 style={[styles.inputText, { color: theme.text }]}
                                 value={locationText}
-                                onChangeText={handleLocationChange}
+                                onChangeText={(text) => {
+                                    setLocationText(text);
+                                    setLocationLat(null);
+                                    setLocationLng(null);
+                                    setLocationAddress(null);
+                                    searchLocation(text);
+                                }}
                             />
                         </View>
-                        {showSuggestions && filteredLocations.length > 0 && (
-                            <View style={[styles.suggestionsContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                {filteredLocations.map((loc, index) => (
+                        {showLocationSuggestions && locationSuggestions.length > 0 && (
+                            <ScrollView
+                                style={[styles.suggestionsContainer, { backgroundColor: theme.card, borderColor: theme.border }]}
+                                nestedScrollEnabled={true}
+                                keyboardShouldPersistTaps="handled"
+                            >
+                                {locationSuggestions.map((loc, index) => (
                                     <TouchableOpacity
                                         key={index}
                                         style={[styles.suggestionItem, { borderBottomColor: theme.border }]}
                                         onPress={() => selectLocation(loc)}
                                     >
-                                        <Text style={[styles.suggestionName, { color: theme.text }]}>{loc.name}</Text>
-                                        <Text style={[styles.suggestionAddress, { color: theme.textSecondary }]}>{loc.address}</Text>
+                                        <Text style={[styles.suggestionName, { color: theme.text }]}>{formatLocationDisplay(loc)}</Text>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
+                            </ScrollView>
                         )}
                     </View>
 
@@ -465,6 +639,25 @@ export default function ManageMatch() {
                             <Text style={styles.saveButtonText}>SALVA</Text>
                         )}
                     </TouchableOpacity>
+
+                    {isEditMode && currentMatchId && originalEventType === eventType && (
+                        <TouchableOpacity
+                            style={[
+                                styles.saveButton,
+                                {
+                                    backgroundColor: theme.card,
+                                    marginTop: 24,
+                                    borderWidth: 0,
+                                    shadowOpacity: 0.1, // Softer shadow
+                                    elevation: 1
+                                }
+                            ]}
+                            onPress={handleDelete}
+                            disabled={loading || saving}
+                        >
+                            <Text style={[styles.saveButtonText, { color: '#FF3B30' }]}>ELIMINA</Text>
+                        </TouchableOpacity>
+                    )}
 
                 </ScrollView >
             </View >

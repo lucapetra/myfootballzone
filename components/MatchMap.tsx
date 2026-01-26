@@ -10,6 +10,7 @@ type MatchMapProps = {
         address: string;
         lat: number;
         lng: number;
+        city?: string;
     };
     theme: any; // Using any for simplicity in this extraction, effectively Colors[scheme]
     openNavigation: () => void;
@@ -26,7 +27,7 @@ export default function MatchMap({ location, theme, openNavigation }: MatchMapPr
                 </View>
                 <View>
                     <Text style={[styles.cardTitle, { color: theme.text }]}>{location.name}</Text>
-                    <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>{location.address}</Text>
+                    <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>{location.city || location.address}</Text>
                 </View>
             </View>
 

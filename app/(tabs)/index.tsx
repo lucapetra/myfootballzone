@@ -1,7 +1,7 @@
 import { useMockMatch } from '@/context/MockMatchContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
-import { fetchNextMatch, MatchData } from '@/services/matchService';
+import { fetchNextMatch, MatchData, refreshSignal } from '@/services/matchService';
 import { Ionicons } from '@expo/vector-icons';
 import * as Calendar from 'expo-calendar';
 import { Image } from 'expo-image';
@@ -57,34 +57,14 @@ export default function HomeScreen() {
 
   const { mockMatch } = useMockMatch();
 
-  // Real Next Match Fallback
-  const realNextMatch: MatchData = {
-    event_type: 'match',
-    home: 'San Maurizio',
-    away: 'Mathi',
-    date: '25 GEN',
-    isoDate: '2026-01-25T15:00:00',
-    time: '15:00',
-    location: {
-      name: 'Campo Sportivo San Maurizio',
-      address: 'Via Ceretta Inferiore, San Maurizio Canavese',
-      lat: 45.21,
-      lng: 7.63
-    },
-    home_team_logo: null,
-    away_team_logo: null,
-    weather: {
-      temp: '6°C',
-      condition: 'Soleggiato',
-      cleats: 'FG',
-      cleatsDesc: 'Terreno buono'
-    },
-    callups: { confirmed: 0, total: 20 }
-  };
+
 
   // State for dynamic match data
   const [nextMatch, setNextMatch] = useState<MatchData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Track if data has been loaded at least once to avoid stale closure issues in useFocusEffect
+  const isDataLoaded = React.useRef(false);
 
   // Fetch data when screen comes into focus
   useFocusEffect(
@@ -94,47 +74,39 @@ export default function HomeScreen() {
        * This ensures changes from "Manage Match" are reflected immediately.
        */
       const loadData = async () => {
-        if (loading) {
-          // Initial Brand Load (Min 1.5s)
-          const minLoadTime = new Promise(resolve => setTimeout(resolve, 1500));
-          try {
-            const results = await Promise.all([
-              mockDataEnabled && mockMatch ? Promise.resolve(mockMatch) : fetchNextMatch(),
-              minLoadTime
-            ]);
-            const match = results[0];
+        try {
+          // If we need a hard reload (delete) OR we haven't loaded data yet, show spinner.
+          const shouldShowLoader = !isDataLoaded.current || refreshSignal.shouldReloadHome;
 
-            if (match) {
-              setNextMatch(match);
-            } else {
-              setNextMatch(realNextMatch);
+          if (shouldShowLoader) {
+            setLoading(true);
+            if (refreshSignal.shouldReloadHome) {
+              setNextMatch(null);
+              refreshSignal.shouldReloadHome = false;
             }
-          } catch (e) {
-            console.log("Error fetching next match:", e);
-            setNextMatch(realNextMatch);
-          } finally {
-            setLoading(false);
           }
-        } else {
-          // Silent Refresh (Background)
+
+          // Always fetch fresh data on focus
           if (mockDataEnabled) {
-            if (mockMatch && JSON.stringify(mockMatch) !== JSON.stringify(nextMatch)) {
-              console.log('Updating mock match from context');
+            if (mockMatch) {
               setNextMatch(mockMatch);
+              isDataLoaded.current = true;
             }
           } else {
-            try {
-              const match = await fetchNextMatch();
-              if (match) setNextMatch(match);
-            } catch (e) {
-              console.log("Silent refresh error:", e);
-            }
+            const match = await fetchNextMatch();
+            setNextMatch(match); // Handles both null and match object
+            isDataLoaded.current = true;
           }
+        } catch (e) {
+          console.log("Error fetching next match:", e);
+          setNextMatch(null);
+        } finally {
+          setLoading(false);
         }
       };
 
       loadData();
-    }, [mockDataEnabled, loading, mockMatch, nextMatch?.isoDate])
+    }, [mockDataEnabled, mockMatch])
   );
 
   const calculateTimeLeft = () => {
@@ -253,9 +225,15 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.headerIconContainer, { backgroundColor: theme.secondaryButton }]}
-            onPress={() => router.push('/matches/manage?mode=edit')}
+            onPress={() => {
+              if (nextMatch?.id) {
+                router.push({ pathname: '/matches/manage', params: { mode: 'edit', id: nextMatch.id, from: 'home' } });
+              } else {
+                router.push({ pathname: '/matches/manage', params: { from: 'home' } }); // Create mode default
+              }
+            }}
           >
-            <Ionicons name="pencil" size={20} color={theme.text} />
+            <Ionicons name={nextMatch ? "pencil" : "add"} size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -347,15 +325,15 @@ export default function HomeScreen() {
               <View style={[styles.iconBox, { backgroundColor: theme.secondaryButton, width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
                 <Ionicons name="calendar-outline" size={32} color={theme.textSecondary} />
               </View>
-              <Text style={[styles.cardTitle, { color: theme.text, fontSize: 18, marginBottom: 8 }]}>Nessuna partita in programma</Text>
+              <Text style={[styles.cardTitle, { color: theme.text, fontSize: 18, marginBottom: 8 }]}>Nessun evento in programma</Text>
               <Text style={[styles.cardSubtitle, { color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 40 }]}>
-                Non hai ancora una squadra o non ci sono partite pianificate per i prossimi giorni.
+                Non hai ancora eventi pianificati. Clicca qui sotto per crearne uno nuovo.
               </Text>
               <TouchableOpacity
                 style={{ marginTop: 24, backgroundColor: theme.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
-                onPress={() => router.push('/team')}
+                onPress={() => router.push({ pathname: '/matches/manage', params: { from: 'home' } })}
               >
-                <Text style={{ color: '#FFF', fontWeight: '700' }}>Cerca squadra</Text>
+                <Text style={{ color: '#FFF', fontWeight: '700' }}>CREA EVENTO</Text>
               </TouchableOpacity>
             </View>
           )}

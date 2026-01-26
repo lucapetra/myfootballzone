@@ -3,6 +3,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import AnimatedCounter from './AnimatedCounter';
 import Avatar from './Avatar';
 
 interface MatchResult {
@@ -17,7 +18,7 @@ interface NextMatchCardProps {
     awayTeam: string;
     homeLogo?: string | null | number;
     awayLogo?: string | null | number;
-    eventType?: 'match' | 'training';
+    eventType?: 'match' | 'training' | 'event' | 'trial';
     timeLeft?: {
         days: string;
         hours: string;
@@ -87,19 +88,19 @@ export default function NextMatchCard({
                     <View style={styles.divider} />
                     <View style={styles.countdownRow}>
                         <View style={styles.countdownItem}>
-                            <Text style={styles.countdownValue}>{timeLeft.days}</Text>
+                            <AnimatedCounter value={timeLeft.days} style={styles.countdownValue} />
                             <Text style={styles.countdownLabel}>GIORNI</Text>
                         </View>
                         <View style={styles.countdownItem}>
-                            <Text style={styles.countdownValue}>{timeLeft.hours}</Text>
+                            <AnimatedCounter value={timeLeft.hours} style={styles.countdownValue} />
                             <Text style={styles.countdownLabel}>ORE</Text>
                         </View>
                         <View style={styles.countdownItem}>
-                            <Text style={styles.countdownValue}>{timeLeft.minutes}</Text>
+                            <AnimatedCounter value={timeLeft.minutes} style={styles.countdownValue} />
                             <Text style={styles.countdownLabel}>MIN</Text>
                         </View>
                         {/* <View style={styles.countdownItem}>
-                            <Text style={styles.countdownValue}>{timeLeft.seconds}</Text>
+                            <AnimatedCounter value={timeLeft.seconds} style={styles.countdownValue} />
                             <Text style={styles.countdownLabel}>SEC</Text>
                         </View> */}
                     </View>
