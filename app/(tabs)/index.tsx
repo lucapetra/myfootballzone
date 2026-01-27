@@ -321,20 +321,47 @@ export default function HomeScreen() {
               </View>
             </>
           ) : (
-            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center', paddingVertical: 40 }]}>
-              <View style={[styles.iconBox, { backgroundColor: theme.secondaryButton, width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
-                <Ionicons name="calendar-outline" size={32} color={theme.textSecondary} />
+            <View>
+              <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center', paddingVertical: 40, marginBottom: 24 }]}>
+                <View style={[styles.iconBox, { backgroundColor: theme.secondaryButton, width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
+                  <Ionicons name="calendar-outline" size={32} color={theme.textSecondary} />
+                </View>
+                <Text style={[styles.cardTitle, { color: theme.text, fontSize: 18, marginBottom: 8 }]}>Nessun evento in programma</Text>
+                <Text style={[styles.cardSubtitle, { color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 40 }]}>
+                  Non hai ancora eventi pianificati. Clicca qui sotto per crearne uno nuovo.
+                </Text>
+                <TouchableOpacity
+                  style={{ marginTop: 24, backgroundColor: theme.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+                  onPress={() => router.push({ pathname: '/matches/manage', params: { from: 'home' } })}
+                >
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>CREA EVENTO</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={[styles.cardTitle, { color: theme.text, fontSize: 18, marginBottom: 8 }]}>Nessun evento in programma</Text>
-              <Text style={[styles.cardSubtitle, { color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 40 }]}>
-                Non hai ancora eventi pianificati. Clicca qui sotto per crearne uno nuovo.
-              </Text>
-              <TouchableOpacity
-                style={{ marginTop: 24, backgroundColor: theme.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
-                onPress={() => router.push({ pathname: '/matches/manage', params: { from: 'home' } })}
-              >
-                <Text style={{ color: '#FFF', fontWeight: '700' }}>CREA EVENTO</Text>
-              </TouchableOpacity>
+
+              {/* Empty Weather State */}
+              <View style={styles.gridRow}>
+                <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border, opacity: 0.7 }]}>
+                  <Text style={styles.statLabel}>METEO</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                    <Ionicons name="cloud-offline" size={36} color={theme.textSecondary} />
+                    <View>
+                      <Text style={[styles.weatherTemp, { color: theme.textSecondary, fontSize: 16 }]}>--</Text>
+                      <Text style={styles.weatherDesc}>Nessun dato</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border, opacity: 0.7 }]}>
+                  <Text style={[styles.statLabel, { color: theme.textSecondary }]}>CAMPO</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                    <Ionicons name="footsteps" size={36} color={theme.textSecondary} />
+                    <View>
+                      <Text style={[styles.weatherTemp, { color: theme.textSecondary, fontSize: 16 }]}>--</Text>
+                      <Text style={styles.weatherDesc}>Sconosciuto</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
             </View>
           )}
 

@@ -15,6 +15,7 @@ export interface MatchData {
         lat: number;
         lng: number;
         city?: string; // Added city for display
+        pitchType?: 'grass' | 'synthetic';
     };
     home_team_logo?: string | null | number;
     away_team_logo?: string | null | number;
@@ -58,11 +59,65 @@ export const fetchEvents = async (startDate?: Date, endDate?: Date): Promise<Mat
         if (error) throw error;
         if (!matches) return [];
 
-        return matches.map(match => transformMatchData(match));
+        const transformedMatches = matches.map(match => transformMatchData(match));
+        return transformedMatches;
     } catch (e) {
         console.error("Error fetching events:", e);
         return [];
     }
+};
+
+// Open-Meteo Integration
+const getWeatherForecast = async (lat: number, lng: number, date: string, pitchType?: 'grass' | 'synthetic') => {
+    try {
+        const dateObj = new Date(date);
+        const isoDate = date.split('T')[0]; // YYYY-MM-DD
+        const hour = dateObj.getHours();
+
+        // Check if date is too far in future (Open-Meteo free is 7 days, but let's try standard)
+        // If > 7 days, maybe just show historical or generic? For now, try fetching.
+        // Actually Open-Meteo Forecast is up to 14 days usually.
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,weather_code&start_date=${isoDate}&end_date=${isoDate}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.hourly) {
+            const index = hour; // approximate index by hour (0-23)
+            const temp = data.hourly.temperature_2m[index];
+            const code = data.hourly.weather_code[index];
+
+            const weather = getWeatherFromCode(code);
+
+            // Override Cleats based on Pitch Type
+            if (pitchType === 'synthetic') {
+                weather.cleats = 'AG';
+                weather.cleatsDesc = 'Sintetico';
+            } else if (pitchType === 'grass') {
+                // Keep default logic for grass (Weather dependent)
+            }
+
+            return {
+                temp: `${Math.round(temp)}°C`,
+                ...weather
+            };
+        }
+    } catch (e) {
+        console.log("Weather fetch error:", e);
+    }
+    return null; // Fallback
+};
+
+const getWeatherFromCode = (code: number) => {
+    // WMO Weather interpretation codes (WW)
+    if (code === 0) return { condition: 'Soleggiato', cleats: 'FG', cleatsDesc: 'Terreno asciutto' };
+    if (code >= 1 && code <= 3) return { condition: 'Nuvoloso', cleats: 'FG', cleatsDesc: 'Terreno buono' };
+    if (code >= 45 && code <= 48) return { condition: 'Nebbia', cleats: 'SG', cleatsDesc: 'Terreno umido' };
+    if (code >= 51 && code <= 67) return { condition: 'Pioggia', cleats: 'SG', cleatsDesc: 'Terreno pesante' };
+    if (code >= 71 && code <= 77) return { condition: 'Neve', cleats: 'SG', cleatsDesc: 'Terreno ghiacciato' };
+    if (code >= 80 && code <= 82) return { condition: 'Rovesci', cleats: 'SG', cleatsDesc: 'Terreno scivoloso' };
+    if (code >= 95) return { condition: 'Temporale', cleats: 'SG', cleatsDesc: 'Terreno bagnato' };
+    return { condition: 'Variabile', cleats: 'FG', cleatsDesc: 'Terreno standard' };
 };
 
 const transformMatchData = (nextMatch: any): MatchData => {
@@ -92,12 +147,16 @@ const transformMatchData = (nextMatch: any): MatchData => {
     // Handle Location
     let locName = nextMatch.location_text || 'Luogo non definito';
     let locAddr = 'Indirizzo non disponibile';
+    let locCity = '';
+    let pitchType: 'grass' | 'synthetic' | undefined = undefined;
 
     try {
         if (nextMatch.location_text && (nextMatch.location_text.startsWith('{') || nextMatch.location_text.startsWith('['))) {
             const parsed = JSON.parse(nextMatch.location_text);
             if (parsed.name) locName = parsed.name;
             if (parsed.address) locAddr = parsed.address;
+            if (parsed.city) locCity = parsed.city;
+            if (parsed.pitchType) pitchType = parsed.pitchType;
         } else {
             locName = nextMatch.location_text;
         }
@@ -120,7 +179,8 @@ const transformMatchData = (nextMatch: any): MatchData => {
             address: locAddr,
             lat: nextMatch.location_lat || 45.21,
             lng: nextMatch.location_lng || 7.63,
-            city: (JSON.parse(nextMatch.location_text || '{}').city) || ''
+            city: locCity,
+            pitchType: pitchType
         },
         description: nextMatch.description || '', // Assuming description column might exist or we add it? If not, ignored.
         weather: {
@@ -176,7 +236,22 @@ export const fetchNextMatch = async (): Promise<MatchData | null> => {
         if (matchError) throw matchError;
         if (!matches || matches.length === 0) return null;
 
-        return transformMatchData(matches[0]);
+        const match = transformMatchData(matches[0]);
+
+        // Enrich with real weather
+        if (match.location.lat && match.location.lng) {
+            const weather = await getWeatherForecast(
+                match.location.lat,
+                match.location.lng,
+                match.isoDate,
+                match.location.pitchType
+            );
+            if (weather) {
+                match.weather = weather;
+            }
+        }
+
+        return match;
     } catch (e) {
         console.error("Error fetching match data:", e);
         return null;
@@ -265,7 +340,8 @@ export const upsertMatch = async (
     locationLng?: number | null,
     locationAddress?: string | null,
     locationCity?: string, // Added argument
-    matchId?: string // Added ID for update support
+    matchId?: string, // Added ID for update support
+    pitchType?: 'grass' | 'synthetic' // Added argument
 ) => {
     let homeTeamId = null;
     let awayTeamId = null;
@@ -285,11 +361,12 @@ export const upsertMatch = async (
         awayTeamId = placeholderId;
     }
 
-    // Store Location Name, Address, and City as JSON in location_text
+    // Store Location Name, Address, City and Pitch Type as JSON in location_text
     const locationData = JSON.stringify({
         name: locationName,
         address: locationAddress || 'Indirizzo non disponibile',
-        city: locationCity || ''
+        city: locationCity || '',
+        pitchType: pitchType || 'grass' // Default to grass if not specified? Or maybe undefined? Let's say grass default or keep undefined if we want to guess. User said "specify option", so default logic applies if not specific.
     });
 
     const matchData = {

@@ -71,6 +71,7 @@ export default function ManageMatch() {
     const [locationLng, setLocationLng] = useState<number | null>(null);
     const [locationAddress, setLocationAddress] = useState<string | null>(null); // For DB address (Full)
     const [locationCity, setLocationCity] = useState<string>(''); // For DB city
+    const [pitchType, setPitchType] = useState<'grass' | 'synthetic'>('grass'); // Default to grass
     const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
     const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
 
@@ -301,7 +302,8 @@ export default function ManageMatch() {
                         address: locationAddress || '',
                         lat: locationLat || 0,
                         lng: locationLng || 0,
-                        city: locationCity
+                        city: locationCity,
+                        pitchType: pitchType // Pass pitchType
                     },
                     home_team_logo: homeLogo,
                     away_team_logo: awayLogo,
@@ -339,7 +341,8 @@ export default function ManageMatch() {
                 locationLng, // Pass lng
                 locationAddress || locationText, // Pass address (full)
                 locationCity, // Pass city
-                currentMatchId || undefined // Pass ID for update if exists
+                currentMatchId || undefined, // Pass ID for update if exists
+                pitchType // Pass pitchType
             );
 
             Alert.alert('Successo', 'Evento salvato correttamente', [
