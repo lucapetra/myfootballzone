@@ -1,11 +1,11 @@
 import { CalendarPicker } from '@/components/CalendarPicker';
+import Skeleton from '@/components/Skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { deleteMatch, fetchEvents, MatchData } from '@/services/matchService';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     Dimensions,
     FlatList,
@@ -226,8 +226,35 @@ export default function CalendarScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+                    {/* Header Skeleton */}
+                    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                        <Skeleton width={120} height={32} borderRadius={8} />
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <Skeleton width={30} height={30} borderRadius={15} />
+                        </View>
+                    </View>
+
+                    <View style={{ flex: 1, paddingBottom: 20 }}>
+                        {/* Section Title Skeleton */}
+                        <View style={{ paddingHorizontal: 20, paddingBottom: 12, marginTop: 16 }}>
+                            <Skeleton width={200} height={24} borderRadius={4} />
+                        </View>
+
+                        {/* Horizontal List Skeleton */}
+                        <View style={{ height: EVENT_SECTION_HEIGHT, paddingHorizontal: 20 }}>
+                            <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} borderRadius={24} />
+                        </View>
+
+                        {/* Calendar Picker Skeleton */}
+                        <View style={styles.calendarContainer}>
+                            <View style={{ paddingHorizontal: 20 }}>
+                                <Skeleton width="100%" height={350} borderRadius={16} />
+                            </View>
+                        </View>
+                    </View>
+                </SafeAreaView>
             </View>
         );
     }

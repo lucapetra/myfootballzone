@@ -1,9 +1,10 @@
 import Avatar from '@/components/Avatar';
+import Skeleton from '@/components/Skeleton';
 import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 
@@ -328,9 +329,17 @@ export default function TeamScreen() {
             </SafeAreaView>
 
             {loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                    <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Caricamento squadra...</Text>
+                <View style={styles.scrollContent}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <View key={i} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Skeleton width={64} height={64} borderRadius={32} />
+                            <View style={{ flex: 1, gap: 8 }}>
+                                <Skeleton width={120} height={20} borderRadius={4} />
+                                <Skeleton width={80} height={14} borderRadius={4} />
+                            </View>
+                            <Skeleton width={48} height={48} borderRadius={16} />
+                        </View>
+                    ))}
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={true}>

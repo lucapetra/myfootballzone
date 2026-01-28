@@ -258,7 +258,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#000' },
+    container: { flex: 1, backgroundColor: '#121212' },
     gradient: { flex: 1 },
     safeArea: { flex: 1 },
     header: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.1)',
     },
     dividerText: {
         color: '#64748b',
@@ -366,13 +366,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     emailButton: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: '#1e293b',
         height: 56,
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: '#334155',
     },
     emailButtonText: {
         color: '#FFF',
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 16,
         height: '100%',
-        fontWeight: '600',
+        letterSpacing: 0,
     },
     eyeIcon: {
         padding: 4,

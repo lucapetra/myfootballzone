@@ -126,7 +126,7 @@ export default function SetupMisterScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#020403',
+        backgroundColor: '#121212',
     },
     safeArea: {
         flex: 1,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
         padding: 16,
         fontSize: 16,
         color: '#FFF',
-        fontWeight: '600',
+        letterSpacing: 0,
     },
     footer: {
         padding: 24,

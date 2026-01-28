@@ -10,9 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import HomeLoader from '../../components/HomeLoader';
 import MatchMap from '../../components/MatchMap';
 import NextMatchCard from '../../components/NextMatchCard';
+import Skeleton from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 
 // Color Palette
@@ -207,7 +207,38 @@ export default function HomeScreen() {
   };
 
   if (loading) {
-    return <HomeLoader />;
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <StatusBar style={activeTheme === 'dark' ? 'light' : 'dark'} />
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          {/* Header Skeleton */}
+          <View style={[styles.header, { backgroundColor: theme.headerBackground, borderBottomColor: theme.border }]}>
+            <View style={styles.headerLeft}>
+              <Skeleton width={40} height={40} borderRadius={12} />
+              <Skeleton width={150} height={24} borderRadius={4} />
+            </View>
+            <Skeleton width={40} height={40} borderRadius={12} />
+          </View>
+
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Match Card Skeleton */}
+            <Skeleton width="100%" height={200} borderRadius={24} />
+
+            {/* Date Card Skeleton */}
+            <Skeleton width="100%" height={80} borderRadius={16} />
+
+            {/* Map/Location Skeleton */}
+            <Skeleton width="100%" height={150} borderRadius={16} />
+
+            {/* Grid Row Skeleton */}
+            <View style={styles.gridRow}>
+              <Skeleton style={{ flex: 1 }} height={120} borderRadius={16} />
+              <Skeleton style={{ flex: 1 }} height={120} borderRadius={16} />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (

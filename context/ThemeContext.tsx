@@ -20,7 +20,7 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const systemColorScheme = useColorScheme();
-    const [theme, setThemeState] = useState<ThemeMode>('system');
+    const [theme, setThemeState] = useState<ThemeMode>('dark');
 
     // activeTheme is either the forced theme OR the system theme
     const activeTheme = theme === 'system' ? (systemColorScheme ?? 'light') : theme;

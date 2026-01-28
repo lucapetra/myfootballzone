@@ -1,4 +1,5 @@
 import EditProfileModal from '@/components/EditProfileModal';
+import Skeleton from '@/components/Skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -142,8 +143,57 @@ export default function ProfileScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.safeArea }]}>
+                    {/* Header Skeleton */}
+                    <View style={styles.header}>
+                        <Skeleton width={100} height={28} borderRadius={8} />
+                        <Skeleton width={40} height={40} borderRadius={20} />
+                    </View>
+
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        {/* Profile Header Skeleton */}
+                        <View style={styles.profileHeader}>
+                            <View style={{ marginBottom: 16 }}>
+                                <Skeleton width={128} height={128} borderRadius={64} style={{ borderRadius: 64 }} />
+                            </View>
+
+                            <View style={{ alignItems: 'center', gap: 6 }}>
+                                <Skeleton width={200} height={32} borderRadius={8} />
+                                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                    <Skeleton width={80} height={16} borderRadius={4} />
+                                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.dot }} />
+                                    <Skeleton width={80} height={16} borderRadius={4} />
+                                </View>
+                                <Skeleton width={150} height={16} borderRadius={4} style={{ marginTop: 4 }} />
+                            </View>
+                        </View>
+
+                        {/* Personal Info Card Skeleton */}
+                        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Skeleton width={180} height={16} borderRadius={4} style={{ marginBottom: 24 }} />
+                            <View style={styles.infoList}>
+                                {[1, 2, 3].map((i) => (
+                                    <View key={i} style={styles.infoRow}>
+                                        <Skeleton width={44} height={44} borderRadius={14} />
+                                        <View style={{ flex: 1, gap: 6 }}>
+                                            <Skeleton width={80} height={12} borderRadius={4} />
+                                            <Skeleton width={150} height={20} borderRadius={4} />
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+
+                        {/* Actions Skeleton */}
+                        <View style={styles.actionSection}>
+                            <Skeleton width="100%" height={56} borderRadius={18} />
+                            <View style={{ alignItems: 'center', marginTop: 12 }}>
+                                <Skeleton width={150} height={20} borderRadius={4} />
+                            </View>
+                        </View>
+                    </ScrollView>
+                </SafeAreaView>
             </View>
         );
     }

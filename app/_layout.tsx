@@ -92,8 +92,8 @@ function RootLayoutNav() {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      background: '#020403',
-      card: '#020403',
+      background: '#1f1f1fff',
+      card: '#1f1f1fff',
     },
   };
 
@@ -103,7 +103,7 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: activeTheme === 'dark' ? '#020403' : '#FFFFFF' }
+          contentStyle: { backgroundColor: activeTheme === 'dark' ? '#1f1f1fff' : '#FFFFFF' }
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
