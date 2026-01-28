@@ -58,8 +58,7 @@
             "backgroundColor": "#000000"
           }
         }
-      ],
-      "@react-native-google-signin/google-signin"
+      ]
     ]
   }
 }

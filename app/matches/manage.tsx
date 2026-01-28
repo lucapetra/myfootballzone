@@ -219,23 +219,39 @@ export default function ManageMatch() {
 
     const selectLocation = (location: any) => {
         const address = location.address || {};
-        // Calculate Short Address (Street + Number)
-        const streetName = address.road || address.pedestrian || address.hamlet || location.display_name.split(',')[0];
+
+        // Use full display_name or construct a simpler one if too long
+        // Ideally, we want "Street, Number, City" or "Place Name, City"
+        const displayName = location.display_name;
+
+        // Construct a structured short address
+        const street = address.road || address.pedestrian || address.hamlet || '';
         const houseNumber = address.house_number || '';
-        const shortAddress = houseNumber ? `${streetName} ${houseNumber}` : streetName;
+        const city = address.city || address.town || address.village || address.municipality || '';
 
-        // Visual text in input = Full Address
-        setLocationText(location.display_name);
+        // If we have a clear place name (like a stadium) that is not the road, use it.
+        // Otherwise fallback to Road + Number
+        const placeName = address.stadium || address.sports_centre || address.leisure || address.amenity || address.building || '';
 
-        // Store Short Address for DB 'name'
-        setLocationShortText(shortAddress);
+        let mainText = '';
+        if (placeName) {
+            mainText = placeName;
+        } else if (street) {
+            mainText = houseNumber ? `${street}, ${houseNumber}` : street;
+        } else {
+            mainText = displayName.split(',')[0];
+        }
 
-        // Coordinates
+        // Determine City for metadata
+        const cityText = city;
+
+        // Set State
+        setLocationText(mainText);
+        setLocationShortText(mainText);
+        setLocationAddress(displayName); // Store full address for reference
+        setLocationCity(cityText);
         setLocationLat(parseFloat(location.lat));
         setLocationLng(parseFloat(location.lon));
-
-        // Store Full Address in state for DB 'address'
-        setLocationAddress(location.display_name);
 
         setShowLocationSuggestions(false);
         Platform.OS !== 'web' && require('react-native').Keyboard.dismiss();
@@ -274,12 +290,12 @@ export default function ManageMatch() {
                 Alert.alert('Errore', 'Inserisci i nomi delle squadre');
                 return;
             }
-            if (!locationText.trim()) {
-                Alert.alert('Errore', 'Inserisci il luogo');
-                return;
-            }
-            // Enforce location selection
-            if (locationLat === null || locationLng === null) {
+            // Optional Location Check removed
+            /* if (!locationText.trim()) {
+               // Allowed empty
+            } */
+            // Enforce location selection from suggestions (requires lat/lng)
+            if (locationText.trim() && (locationLat === null || locationLng === null)) {
                 Alert.alert('Attenzione', 'Devi selezionare un luogo dai suggerimenti per salvare l\'evento.');
                 return;
             }
@@ -298,7 +314,7 @@ export default function ManageMatch() {
                     isoDate: newDate.toISOString(),
                     time: timeStr,
                     location: {
-                        name: locationShortText || locationText,
+                        name: locationShortText || locationText || 'Luogo da definire',
                         address: locationAddress || '',
                         lat: locationLat || 0,
                         lng: locationLng || 0,
@@ -332,14 +348,14 @@ export default function ManageMatch() {
             await upsertMatch(
                 eventType,
                 startDateTime,
-                locationShortText || locationText, // Use Short name for DB name
+                locationShortText || locationText || undefined, // Allow undefined
                 homeTeam,
                 awayTeam,
                 finalHomeLogo,
                 finalAwayLogo,
-                locationLat, // Pass lat
-                locationLng, // Pass lng
-                locationAddress || locationText, // Pass address (full)
+                locationLat, // Pass lat (nullable)
+                locationLng, // Pass lng (nullable)
+                locationAddress || locationText || undefined, // Pass address (full)
                 locationCity, // Pass city
                 currentMatchId || undefined, // Pass ID for update if exists
                 pitchType // Pass pitchType
@@ -509,6 +525,7 @@ export default function ManageMatch() {
                             <View style={styles.teamInputContainer}>
                                 {/* Logo Upload Removed */}
                                 <TextInput
+                                    testID="input-home-team"
                                     placeholder="Squadra in casa"
                                     placeholderTextColor={theme.textSecondary}
                                     style={[styles.input, { color: theme.text, borderColor: theme.border, flex: 1 }]}
@@ -522,6 +539,7 @@ export default function ManageMatch() {
                             <View style={styles.teamInputContainer}>
                                 {/* Logo Upload Removed */}
                                 <TextInput
+                                    testID="input-away-team"
                                     placeholder="Squadra ospite"
                                     placeholderTextColor={theme.textSecondary}
                                     style={[styles.input, { color: theme.text, borderColor: theme.border, flex: 1 }]}
@@ -598,6 +616,7 @@ export default function ManageMatch() {
                         <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="location-outline" size={20} color={theme.textSecondary} style={{ marginRight: 8 }} />
                             <TextInput
+                                testID="input-location"
                                 placeholder="Cerca luogo..."
                                 placeholderTextColor={theme.textSecondary}
                                 style={[styles.inputText, { color: theme.text }]}
@@ -607,10 +626,37 @@ export default function ManageMatch() {
                                     setLocationLat(null);
                                     setLocationLng(null);
                                     setLocationAddress(null);
+                                    setLocationShortText(''); // Clear derived data
+                                    setLocationCity(''); // Clear derived data
                                     searchLocation(text);
                                 }}
                             />
                         </View>
+
+                        {/* Selected Location Card */}
+                        {locationLat && locationLng && (
+                            <View style={{ marginTop: 12, backgroundColor: theme.card, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: theme.border }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: theme.iconBox, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="location" size={20} color={theme.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 14, fontWeight: '700', color: theme.text }}>{locationText}</Text>
+                                    <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>{locationCity ? `${locationAddress?.split(',')[0]}, ${locationCity}` : locationAddress}</Text>
+                                </View>
+                                <TouchableOpacity
+                                    testID="clear-location-btn"
+                                    onPress={() => {
+                                        setLocationText('');
+                                        setLocationLat(null);
+                                        setLocationLng(null);
+                                        setLocationAddress(null);
+                                        setLocationShortText(''); // Clear derived data
+                                        setLocationCity(''); // Clear derived data
+                                    }}>
+                                    <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
                         {showLocationSuggestions && locationSuggestions.length > 0 && (
                             <ScrollView
                                 style={[styles.suggestionsContainer, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -620,6 +666,7 @@ export default function ManageMatch() {
                                 {locationSuggestions.map((loc, index) => (
                                     <TouchableOpacity
                                         key={index}
+                                        testID={index === 0 ? "location-suggestion-0" : undefined}
                                         style={[styles.suggestionItem, { borderBottomColor: theme.border }]}
                                         onPress={() => selectLocation(loc)}
                                     >
@@ -632,6 +679,7 @@ export default function ManageMatch() {
 
                     {/* Save Button */}
                     <TouchableOpacity
+                        testID="save-match-btn"
                         style={[styles.saveButton, { backgroundColor: theme.primary }]}
                         onPress={handleSave}
                         disabled={saving}

@@ -66,7 +66,7 @@ export default function NextMatchCard({
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
                                 <Avatar name={homeTeam} size={60} style={{ backgroundColor: 'transparent' }} fontSize={24} />
                             </BlurView>
-                            <Text style={styles.teamName} numberOfLines={2}>{homeTeam}</Text>
+                            <Text testID="home-team-name" style={styles.teamName} numberOfLines={2}>{homeTeam}</Text>
                         </View>
 
                         <View style={styles.vsContainer}>
@@ -77,7 +77,7 @@ export default function NextMatchCard({
                             <BlurView intensity={30} tint="light" style={styles.teamLogoContainer}>
                                 <Avatar name={awayTeam} size={60} style={{ backgroundColor: 'transparent' }} fontSize={24} />
                             </BlurView>
-                            <Text style={styles.teamName} numberOfLines={2}>{awayTeam}</Text>
+                            <Text testID="away-team-name" style={styles.teamName} numberOfLines={2}>{awayTeam}</Text>
                         </View>
                     </>
                 )}

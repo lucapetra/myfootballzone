@@ -215,7 +215,7 @@ export default function CalendarScreen() {
                         <View style={styles.detailItem}>
                             <Ionicons name="location-outline" size={14} color={theme.textSecondary} />
                             <Text style={[styles.detailText, { color: theme.textSecondary }]} numberOfLines={1}>
-                                {item.location.name}
+                                {item.location?.name || 'Luogo non definito'}
                             </Text>
                         </View>
                     </View>

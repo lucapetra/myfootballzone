@@ -1,0 +1,69 @@
+appId: com.anonymous.MyFootballZone
+---
+# IMPORTANT: Manually navigate to Home screen (tap Home tab) before running this test!
+# Pre-conditions: App must be on Home screen.
+
+- tapOn:
+        id: "edit-match-btn"
+
+# Wait for inputs to appear
+- assertVisible: "Partita"
+- tapOn: "Partita" # Force Match mode
+
+- assertVisible:
+        id: "input-home-team"
+
+# Clear and Input Home Team
+- tapOn:
+        id: "input-home-team"
+- eraseText
+- inputText: "Milan"
+- hideKeyboard
+
+# Clear and Input Away Team
+- tapOn:
+        id: "input-away-team"
+- eraseText
+- inputText: "Inter"
+- hideKeyboard
+
+# Input Location and Select from Suggestions
+- tapOn:
+        id: "input-location"
+- eraseText
+- inputText: "San Siro"
+
+# Wait for suggestions to appear (debounce is 1 second)
+- waitForAnimationToEnd:
+        timeout: 2000
+
+# Tap the first suggestion from the list
+- tapOn:
+        id: "location-suggestion-0"
+
+# Save the event
+- tapOn:
+        id: "save-match-btn"
+
+# Wait for save operation to complete (async database call)
+- waitForAnimationToEnd:
+        timeout: 3000
+
+# Dismiss success alert
+- tapOn: "OK"
+
+# Verify Home Screen Data
+- assertVisible:
+        id: "edit-match-btn" # Wait for Home
+
+- assertVisible:
+        id: "home-team-name"
+- assertVisible: "Milan"
+
+- assertVisible:
+        id: "away-team-name"
+- assertVisible: "Inter"
+
+# Verify location element exists (name varies from Nominatim API)
+- assertVisible:
+        id: "match-map-name"

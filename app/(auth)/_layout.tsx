@@ -7,8 +7,6 @@ export default function AuthLayout() {
             contentStyle: { backgroundColor: '#000' }
         }}>
             <Stack.Screen name="login" />
-            <Stack.Screen name="email-login" />
-            <Stack.Screen name="sign-up" />
             <Stack.Screen name="reset-password" />
         </Stack>
     );

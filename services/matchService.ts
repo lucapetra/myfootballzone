@@ -9,7 +9,7 @@ export interface MatchData {
     date: string;
     isoDate: string;
     time: string;
-    location: {
+    location?: {
         name: string;
         address: string;
         lat: number;
@@ -141,8 +141,14 @@ const transformMatchData = (nextMatch: any): MatchData => {
 
     // Format Date
     const mDate = new Date(nextMatch.match_date);
-    const dayName = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' }).format(mDate).toUpperCase();
-    const time = mDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    let dayName = 'DATA INVALIDA';
+    let time = '00:00';
+
+    if (!isNaN(mDate.getTime())) {
+        dayName = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' }).format(mDate).toUpperCase();
+        time = mDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    }
+
 
     // Handle Location
     let locName = nextMatch.location_text || 'Luogo non definito';
@@ -164,6 +170,23 @@ const transformMatchData = (nextMatch: any): MatchData => {
         locName = nextMatch.location_text || 'Luogo non definito';
     }
 
+    // Determine if we have a valid location
+    let locationData: MatchData['location'] | undefined = undefined;
+
+    // Check if we have minimal requirements for a location (at least a name or coordinates)
+    const hasLocationData = nextMatch.location_text || (nextMatch.location_lat && nextMatch.location_lng);
+
+    if (hasLocationData) {
+        locationData = {
+            name: locName,
+            address: locAddr,
+            lat: nextMatch.location_lat || 45.21,
+            lng: nextMatch.location_lng || 7.63,
+            city: locCity,
+            pitchType: pitchType
+        };
+    }
+
     return {
         id: nextMatch.id,
         event_type: eventType,
@@ -174,14 +197,7 @@ const transformMatchData = (nextMatch: any): MatchData => {
         date: dayName,
         isoDate: nextMatch.match_date,
         time: time,
-        location: {
-            name: locName,
-            address: locAddr,
-            lat: nextMatch.location_lat || 45.21,
-            lng: nextMatch.location_lng || 7.63,
-            city: locCity,
-            pitchType: pitchType
-        },
+        location: locationData,
         description: nextMatch.description || '', // Assuming description column might exist or we add it? If not, ignored.
         weather: {
             temp: '6°C',
@@ -239,21 +255,32 @@ export const fetchNextMatch = async (): Promise<MatchData | null> => {
         const match = transformMatchData(matches[0]);
 
         // Enrich with real weather
-        if (match.location.lat && match.location.lng) {
+        if (match.location && match.location.lat && match.location.lng) {
             const weather = await getWeatherForecast(
                 match.location.lat,
                 match.location.lng,
                 match.isoDate,
                 match.location.pitchType
             );
-            if (weather) {
-                match.weather = weather;
-            }
         }
 
         return match;
-    } catch (e) {
-        console.error("Error fetching match data:", e);
+        return match;
+    } catch (e: any) {
+        console.error("Error fetching match data (RAW):", e);
+        if (e === null) console.error("Error is literally NULL");
+        if (e === undefined) console.error("Error is literally UNDEFINED");
+
+        try {
+            console.error("Error details (JSON):", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+        } catch (jsonErr) {
+            console.error("Could not stringify error:", jsonErr);
+        }
+
+        if (e instanceof Error) {
+            console.error("Error message:", e.message);
+            console.error("Error stack:", e.stack);
+        }
         return null;
     }
 };
@@ -331,7 +358,7 @@ export const upsertTeam = async (name: string, logoUrl?: string | null) => {
 export const upsertMatch = async (
     eventType: 'match' | 'training' | 'event' | 'trial',
     date: Date,
-    locationName: string,
+    locationName?: string,
     homeTeamName?: string,
     awayTeamName?: string,
     homeLogo?: string | null,
@@ -362,19 +389,23 @@ export const upsertMatch = async (
     }
 
     // Store Location Name, Address, City and Pitch Type as JSON in location_text
-    const locationData = JSON.stringify({
-        name: locationName,
-        address: locationAddress || 'Indirizzo non disponibile',
-        city: locationCity || '',
-        pitchType: pitchType || 'grass' // Default to grass if not specified? Or maybe undefined? Let's say grass default or keep undefined if we want to guess. User said "specify option", so default logic applies if not specific.
-    });
+    let locationDataStr = null;
+
+    if (locationName) {
+        locationDataStr = JSON.stringify({
+            name: locationName,
+            address: locationAddress || 'Indirizzo non disponibile',
+            city: locationCity || '',
+            pitchType: pitchType || 'grass'
+        });
+    }
 
     const matchData = {
         event_type: eventType,
         home_team_id: homeTeamId,
         away_team_id: awayTeamId,
         match_date: date.toISOString(),
-        location_text: locationData,
+        location_text: locationDataStr,
         location_lat: locationLat,
         location_lng: locationLng,
         status: 'scheduled',
@@ -393,4 +424,7 @@ export const upsertMatch = async (
         const { error } = await supabase.from('matches').insert(matchData);
         if (error) throw error;
     }
+
+    // Signal Home to Reload
+    refreshSignal.shouldReloadHome = true;
 };

@@ -1,0 +1,14 @@
+appId: com.anonymous.MyFootballZone
+---
+- tapOn:
+          id: "edit-match-btn"
+- tapOn:
+          id: "clear-location-btn"
+          optional: true # In case it's already cleared, don't fail
+- tapOn:
+          id: "save-match-btn"
+- tapOn: "OK"
+- assertVisible:
+          id: "edit-match-btn" # Wait for Home screen
+- assertVisible:
+          id: "empty-location-card"

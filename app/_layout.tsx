@@ -22,7 +22,9 @@ function RootLayoutNav() {
   useEffect(() => {
     // Check if first launch
     AsyncStorage.getItem('hasLaunched').then(value => {
-      setIsFirstLaunch(value === null);
+      // FORCE ONBOARDING FOR TESTING
+      setIsFirstLaunch(true);
+      // setIsFirstLaunch(value === null);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {

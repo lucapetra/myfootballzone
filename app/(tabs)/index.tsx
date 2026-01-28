@@ -98,7 +98,7 @@ export default function HomeScreen() {
             isDataLoaded.current = true;
           }
         } catch (e) {
-          console.log("Error fetching next match:", e);
+          console.warn('Warning: Could not prefetch team images.');
           setNextMatch(null);
         } finally {
           setLoading(false);
@@ -154,14 +154,14 @@ export default function HomeScreen() {
           await Image.prefetch(urls);
         }
       } catch (err) {
-        console.error('Error prefetching team images:', err);
+        console.warn('Warning: Could not prefetch team images.', err);
       }
     };
     prefetchImages();
   }, []);
 
   const openNavigation = () => {
-    if (!nextMatch) return;
+    if (!nextMatch || !nextMatch.location) return;
     const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
     const latLng = `${nextMatch.location.lat},${nextMatch.location.lng}`;
     const label = nextMatch.location.name;
@@ -195,7 +195,7 @@ export default function HomeScreen() {
         startDate,
         endDate,
         timeZone: 'Europe/Rome',
-        location: `${nextMatch.location.name}, ${nextMatch.location.address}`,
+        location: nextMatch.location ? `${nextMatch.location.name}, ${nextMatch.location.address}` : 'Luogo da definire',
         notes: 'Partita di campionato - MyFootballZone',
       });
 
@@ -224,6 +224,7 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity
+            testID="edit-match-btn"
             style={[styles.headerIconContainer, { backgroundColor: theme.secondaryButton }]}
             onPress={() => {
               if (nextMatch?.id) {
@@ -270,55 +271,58 @@ export default function HomeScreen() {
               </TouchableOpacity>
 
               {/* Map Section */}
-              <MatchMap
-                location={nextMatch.location}
-                theme={theme}
-                openNavigation={openNavigation}
-              />
+              {nextMatch.location ? (
+                <MatchMap
+                  location={nextMatch.location}
+                  theme={theme}
+                  openNavigation={openNavigation}
+                />
+              ) : (
+                <TouchableOpacity
+                  testID="empty-location-card"
+                  activeOpacity={0.7}
+                  onPress={() => router.push({ pathname: '/matches/manage', params: { mode: 'edit', id: nextMatch.id, from: 'home' } })}
+                  style={[styles.card, { paddingVertical: 40, paddingHorizontal: 20, backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1.5 }]}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: theme.secondaryButton, marginBottom: 16, width: 64, height: 64, borderRadius: 32 }]}>
+                    <Ionicons name="map-outline" size={32} color={theme.textSecondary} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: theme.text, fontSize: 18, marginBottom: 8 }]}>Luogo non definito</Text>
+                  <Text style={[styles.cardSubtitle, { color: theme.textSecondary, textAlign: 'center', lineHeight: 20 }]}>
+                    Non è stato selezionato alcun campo.{'\n'}Tocca qui per aggiungerne uno.
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-              {/* Weather & Cleats Grid */}
-              <View style={styles.gridRow}>
-                <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Text style={styles.statLabel}>METEO PREVISTO</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-                    <Ionicons name="rainy" size={36} color={theme.primary} />
-                    <View>
-                      <Text style={[styles.weatherTemp, { color: theme.text }]}>{nextMatch.weather.temp}</Text>
-                      <Text style={styles.weatherDesc}>{nextMatch.weather.condition}</Text>
+              {/* Weather & Cleats Grid - Only show if location is set (implies specific weather) */}
+              {nextMatch.location && (
+                <View style={styles.gridRow}>
+                  <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={styles.statLabel}>METEO PREVISTO</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                      <Ionicons name="rainy" size={48} color={theme.primary} />
+                      <View>
+                        <Text style={[styles.weatherTemp, { color: theme.text }]}>{nextMatch.weather.temp}</Text>
+                        <Text style={styles.weatherDesc}>{nextMatch.weather.condition}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.statLabel, { color: theme.primary }]}>TACCHETTI CONSIGLIATI</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                      <Ionicons name="footsteps" size={48} color={theme.primary} />
+                      <View>
+                        <Text style={[styles.weatherTemp, { color: theme.primary }]}>{nextMatch.weather.cleats}</Text>
+                        <Text style={styles.weatherDesc}>{nextMatch.weather.cleatsDesc}</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
-
-                <View style={[styles.card, styles.gridItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Text style={[styles.statLabel, { color: theme.primary }]}>TACCHETTI CONSIGLIATI</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-                    <Ionicons name="footsteps" size={36} color={theme.primary} />
-                    <View>
-                      <Text style={[styles.weatherTemp, { color: theme.primary }]}>{nextMatch.weather.cleats}</Text>
-                      <Text style={styles.weatherDesc}>{nextMatch.weather.cleatsDesc}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
+              )}
 
               {/* Callups */}
-              <View style={[styles.card, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 100, backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View>
-                  <Text style={[styles.statLabel, { color: theme.primary, marginBottom: 4 }]}>CONVOCAZIONI</Text>
-                  <Text style={[styles.cardTitle, { color: theme.text }]}>
-                    <Text style={{ color: theme.primary }}>{nextMatch.callups.confirmed}</Text> / {nextMatch.callups.total} <Text style={{ color: theme.textSecondary, fontWeight: '500' }}>Giocatori</Text>
-                  </Text>
-                </View>
 
-                <View style={styles.avatarStack}>
-                  {[1, 2, 3].map((_, i) => (
-                    <View key={i} style={[styles.avatar, { marginLeft: i > 0 ? -8 : 0, backgroundColor: `rgba(34, 197, 94, ${0.4 + i * 0.2})` }]} />
-                  ))}
-                  <View style={[styles.avatar, { marginLeft: -8, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Text style={styles.avatarMore}>+11</Text>
-                  </View>
-                </View>
-              </View>
             </>
           ) : (
             <View>
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
   gridRow: { flexDirection: 'row', gap: 16 },
   gridItem: { flex: 1 },
   statBox: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' },
-  statLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 },
+  statLabel: { fontSize: 12, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 8 },
   statValuePrimary: { fontSize: 24, fontWeight: '900' },
   statValue: { fontSize: 24, fontWeight: '900' },
 
@@ -454,8 +458,8 @@ const styles = StyleSheet.create({
   h2hLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
   h2hValue: { fontSize: 12, fontWeight: '700' },
 
-  weatherTemp: { fontSize: 20, fontWeight: '900' },
-  weatherDesc: { fontSize: 10, color: '#64748b' },
+  weatherTemp: { fontSize: 28, fontWeight: '900' },
+  weatherDesc: { fontSize: 12, color: '#64748b' },
 
   avatarStack: { flexDirection: 'row' },
   avatar: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#FFF' },

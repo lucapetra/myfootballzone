@@ -25,9 +25,9 @@ export default function MatchMap({ location, theme, openNavigation }: MatchMapPr
                 <View style={[styles.iconBox, { backgroundColor: theme.iconBox }]}>
                     <Ionicons name="location" size={24} color={theme.primary} />
                 </View>
-                <View>
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>{location.name}</Text>
-                    <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>{location.city || location.address}</Text>
+                <View style={{ flex: 1 }}>
+                    <Text testID="match-map-name" style={[styles.cardTitle, { color: theme.text, fontSize: 16 }]}>{location.name}</Text>
+                    <Text style={[styles.cardSubtitle, { color: theme.textSecondary, fontSize: 13 }]}>{location.city || location.address}</Text>
                 </View>
             </View>
 
